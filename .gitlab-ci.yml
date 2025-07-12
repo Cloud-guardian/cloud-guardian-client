@@ -10,17 +10,17 @@ stages:
 variables:
   BINARY: "cloud-guardian"
   PACKAGE_REGISTRY_URL: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${BINARY}"
-
+  LDFLAGS : "-X cloud-guardian/cli.Version=${CI_COMMIT_TAG}"
 build:
   stage: build
   image: docker.io/golang:1.24-alpine
   script:
     - apk add --no-cache git
     - go mod download
-    - GOOS=linux GOARCH=amd64 go build -o bin/linux_amd64/${BINARY}
-    - GOOS=darwin GOARCH=amd64 go build -o bin/darwin_amd64/${BINARY}
-    - GOOS=darwin GOARCH=arm64 go build -o bin/darwin_arm64/${BINARY}
-    - GOOS=windows GOARCH=amd64 go build -o bin/windows_amd64/${BINARY}.exe
+    - GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o bin/linux_amd64/${BINARY}
+    - GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o bin/darwin_amd64/${BINARY}
+    - GOOS=darwin GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o bin/darwin_arm64/${BINARY}
+    - GOOS=windows GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o bin/windows_amd64/${BINARY}.exe
   artifacts:
     paths:
       - bin/
