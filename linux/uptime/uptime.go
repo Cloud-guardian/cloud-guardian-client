@@ -2,8 +2,8 @@ package linux_uptime
 
 import (
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 func GetUptime() (int64, error) {

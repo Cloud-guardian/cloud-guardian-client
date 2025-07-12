@@ -1,16 +1,16 @@
 package linux_loggedinusers
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
-	"fmt"
 )
 
 type LoggedInUser struct {
-	Username string
-	Terminal string
+	Username  string
+	Terminal  string
 	LoginTime string
-	Host     string
+	Host      string
 }
 
 // GetLoggedInUsers retrieves the list of currently logged-in users on a Linux system.
@@ -45,7 +45,7 @@ func parseLoggedInUsers(output string) []LoggedInUser {
 				Username:  parts[0],
 				Terminal:  parts[1],
 				LoginTime: parts[2] + " " + parts[3], // Combine date and time
-				Host:      host, // Host is the last part
+				Host:      host,                      // Host is the last part
 			})
 		}
 	}
