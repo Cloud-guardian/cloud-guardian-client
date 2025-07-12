@@ -1,9 +1,9 @@
 #! /usr/bin/env make
 .PHONY: help fmt lint vet
 
-VERSION := $(shell git describe --tags --long --always --match "v*.*.*")
+VERSION ?= $(shell git describe --tags --long --always --match "*.*.*")
 API_URL ?= "https://api.cloud-guardian.net/cloudguardian-api/v1/"
-LDFLAGS := -X 'cloud-guardian/cli.Version=$(VERSION)' -X 'cloud-guardian/cli.ApiUrl=$(API_URL)'
+LDFLAGS := -X 'patchmaster-client/cli.Version=v$(VERSION)' -X 'patchmaster-client/cli.ApiUrl=$(API_URL)'
 SRC_FILES = $(shell find . -type f -name '*.go')
 
 help: ## Displays help.
@@ -21,6 +21,7 @@ tidy: ## Refresh go.mod file
 
 clean: ## Cleanup environment
 	@rm -f bin/*/*
+	@rm -f dist/*
 
 fix: fmt
 
@@ -54,15 +55,43 @@ build_archs = \
 	darwin_amd64 \
 	darwin_arm64
 
-bin/% /bin%.exe: ${SRC_FILES} ## Build binary for the specified architecture
+releases = \
+	${binary}_${VERSION}_linux_amd64.tar.gz \
+	${binary}_${VERSION}_linux_arm64.tar.gz \
+	${binary}_${VERSION}_darwin_amd64.zip \
+	${binary}_${VERSION}_darwin_arm64.zip \
+	${binary}_${VERSION}_windows_amd64.zip \
+	${binary}_${VERSION}_windows_arm64.zip
+
+build: $(foreach arch, ${build_archs}, bin/${arch}/${binary}) build_windows
+build_windows: bin/windows_amd64/${binary}.exe bin/windows_arm64/${binary}.exe
+
+bin/%: ${SRC_FILES} ## Build binary for the specified architecture
 	$(eval OSARCH = $(subst /, ,$*))
 	$(eval OSARCH = $(subst _, ,${OSARCH}))
 	GOOS=$(word 1, $(OSARCH)) GOARCH=$(word 2, $(OSARCH)) go build -ldflags="${LDFLAGS}" -o $@ ${SRC_MAIN}
 
-build: $(foreach arch, ${build_archs}, bin/${arch}/${binary})
-build_windows: bin/windows_amd64/${binary}.exe
+dist:
+	@mkdir -p dist
 
-release: build ## Create builds for Linux
+release: build dist $(foreach release, ${releases}, dist/${release}) ## Create release archives in dist/
+
+dist/%: ## Create zip / tarball archives from the binaries
+	@echo "$@:"
+	$(eval PARTS = $(subst _, ,$*))
+	$(eval OS = $(word 3, $(PARTS)))
+	$(eval PARTS = $(subst ., ,$(word 4, $(PARTS))))
+	$(eval ARCH = $(word 1, $(PARTS)))
+	$(eval EXT = $(suffix $(suffix $*)))
+	@if [ "${EXT}" = ".zip" ]; then \
+		if [ "${OS}" = "windows" ]; then \
+			cd bin/${OS}_${ARCH} && zip ../../$@ ${binary}.exe; \
+		else \
+			cd bin/${OS}_${ARCH} && zip ../../$@ ${binary}; \
+		fi; \
+	else \
+		tar --create --verbose --gzip --file $@ --directory bin/${OS}_${ARCH} ${binary}; \
+	fi
 
 # Docker test environments
 DOCKER_PLATFORMS := --platform linux/amd64
