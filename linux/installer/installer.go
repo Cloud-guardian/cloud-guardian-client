@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	targetPath         = "/usr/bin/patchmaster-client"
-	serviceName        = "patchmaster-client.service"
+	targetPath         = "/usr/bin/cloud-guardian"
+	serviceName        = "cloud-guardian.service"
 	serviceFilePath    = "/etc/systemd/system/" + serviceName
 	serviceDescription = "Patchmaster Client Service"
 )

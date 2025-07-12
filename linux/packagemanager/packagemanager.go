@@ -1,10 +1,10 @@
 package linux_packagemanager
 
 import (
+	linux_debian_apt "cloud-guardian/linux_debian/apt"
+	linux_redhat_dnf "cloud-guardian/linux_redhat/dnf"
 	"fmt"
 	"os"
-	"patchmaster-client/linux_debian/apt"
-	"patchmaster-client/linux_redhat/dnf"
 )
 
 type UpdateType int

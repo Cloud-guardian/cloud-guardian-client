@@ -1,18 +1,18 @@
 package cli
 
 import (
+	linux_container "cloud-guardian/linux/container"
+	linux_installer "cloud-guardian/linux/installer"
+	linux_loggedinusers "cloud-guardian/linux/loggedinusers"
+	linux_osrelease "cloud-guardian/linux/osrelease"
+	pm "cloud-guardian/linux/packagemanager"
+	linux_uptime "cloud-guardian/linux/uptime"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"patchmaster-client/linux/container"
-	"patchmaster-client/linux/installer"
-	"patchmaster-client/linux/osrelease"
-	pm "patchmaster-client/linux/packagemanager"
-	"patchmaster-client/linux/uptime"
-	"patchmaster-client/linux/loggedinusers"
 	"path"
 	"regexp"
 	"strings"
@@ -284,10 +284,9 @@ func processSimpleMonitoring(hostname string) {
 		return
 	}
 
-
 	statusCode, err := postRequest(ApiUrl+"hosts/monitoring/"+hostname, map[string]interface{}{
-		"uptime": uptime,
-		"load_average": "",
+		"uptime":          uptime,
+		"load_average":    "",
 		"logged_in_users": loggedInUsers,
 	})
 	if err != nil || statusCode != http.StatusOK {

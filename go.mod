@@ -1,3 +1,3 @@
-module patchmaster-client
+module cloud-guardian
 
 go 1.23.6

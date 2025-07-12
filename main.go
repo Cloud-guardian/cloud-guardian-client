@@ -1,7 +1,7 @@
 package main
 
 import (
-	"patchmaster-client/cli"
+	"cloud-guardian/cli"
 )
 
 func main() {

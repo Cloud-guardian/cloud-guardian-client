@@ -3,7 +3,7 @@
 
 VERSION := $(shell git describe --tags --long --always --match "v*.*.*")
 API_URL ?= "https://api.cloud-guardian.net/cloudguardian-api/v1/"
-LDFLAGS := -X 'patchmaster-client/cli.Version=$(VERSION)' -X 'patchmaster-client/cli.ApiUrl=$(API_URL)'
+LDFLAGS := -X 'cloud-guardian/cli.Version=$(VERSION)' -X 'cloud-guardian/cli.ApiUrl=$(API_URL)'
 SRC_FILES = $(shell find . -type f -name '*.go')
 
 help: ## Displays help.
