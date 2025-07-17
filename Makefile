@@ -3,7 +3,7 @@
 
 VERSION ?= $(shell git describe --tags --long --always --match "*.*.*")
 API_URL ?= "https://api.cloud-guardian.net/cloudguardian-api/v1/"
-LDFLAGS := -X 'patchmaster-client/cli.Version=v$(VERSION)' -X 'patchmaster-client/cli.ApiUrl=$(API_URL)'
+LDFLAGS := -X 'cloud-guardian/cli.Version=v$(VERSION)' -X 'cloud-guardian/cli.ApiUrl=$(API_URL)'
 SRC_FILES = $(shell find . -type f -name '*.go')
 
 help: ## Displays help.
@@ -96,7 +96,8 @@ dist/%: ## Create zip / tarball archives from the binaries
 # Docker test environments
 DOCKER_PLATFORMS := --platform linux/amd64
 DOCKER_VOLUME := --volume ./bin:/client
-DOCKER_COMMON_FLAGS := --rm -it $(DOCKER_PLATFORMS) $(DOCKER_VOLUME) --env API_KEY=${API_KEY}
+DOCKER_ENV := --env API_KEY=${API_KEY}
+DOCKER_COMMON_FLAGS := --rm -it $(DOCKER_PLATFORMS) $(DOCKER_VOLUME) $(DOCKER_ENV)
 
 run-docker-almalinux-%: ## Run AlmaLinux container
 	docker run $(DOCKER_COMMON_FLAGS) docker.io/almalinux:$*
@@ -106,3 +107,21 @@ run-docker-rockylinux-%: ## Run Rocky Linux container
 
 run-docker-ubuntu-%: ## Run Ubuntu container
 	docker run $(DOCKER_COMMON_FLAGS) docker.io/ubuntu:jammy-20240808
+
+
+CONTAINER_PORTS = \
+	5001:ubuntu_18.04 \
+	5002:ubuntu_20.04 \
+	5003:ubuntu_22.04 \
+	5004:rockylinux_8 \
+	5005:rockylinux_9
+
+test_containers/.run.%: test_containers/.built.% ## Run the test container
+	$(eval PORT_IMAGE := $(filter %:$*,$(CONTAINER_PORTS)))
+	$(eval PORT := $(word 1,$(subst :, ,$(PORT_IMAGE))))
+	podman run --platform linux/arm64 --cap-add AUDIT_WRITE --detach --rm $(DOCKER_VOLUME) $(DOCKER_ENV) $*
+	@touch $@
+
+test_containers/.built.%:
+	@docker build --platform linux/arm64 --tag $* --file test_containers/$*/Dockerfile
+	@touch $@
