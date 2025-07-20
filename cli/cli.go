@@ -7,14 +7,14 @@ import (
 	linux_loggedinusers "cloud-guardian/linux/loggedinusers"
 	linux_osrelease "cloud-guardian/linux/osrelease"
 	pm "cloud-guardian/linux/packagemanager"
-	linux_uptime "cloud-guardian/linux/uptime"
+	linux_top "cloud-guardian/linux/top"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
-	"log"
 	"path"
 	"regexp"
 	"strings"
@@ -46,6 +46,7 @@ func Start() {
 		apiKeyFlag    = flag.String("api-key", "", "API key for authentication (required)")
 		oneShotFlag   = flag.Bool("oneshot", false, "Run in oneshot mode (process updates and exit)")
 		installFlag   = flag.Bool("install", false, "Install the client as a system service (also registers the client)")
+		updateFlag    = flag.Bool("update", false, "Update the client to the latest version (if available)")
 		uninstallFlag = flag.Bool("uninstall", false, "Uninstall the client service (if installed)")
 		registerFlag  = flag.Bool("register", false, "Register the client with the API (register without installing as a service)")
 	)
@@ -130,6 +131,12 @@ func Start() {
 		return
 	}
 
+	if *updateFlag {
+		// Update the client to the latest version
+		UpdateService()
+		return
+	}
+
 	if *registerFlag {
 		// Register the client with the API
 		registerClient(hostname)
@@ -159,6 +166,21 @@ func InstallService(hostname string) {
 
 	// Register the client with the API after installing as a service
 	registerClient(hostname)
+}
+
+func UpdateService() {
+
+	linux_installer.Config = config // Set the configuration for the installer
+	if err := linux_installer.Update(); err != nil {
+		// check if error is os.ErrPermission, which indicates that the user does not have root privileges
+		if os.IsPermission(err) {
+			println("Error: You need to run this command with root privileges to update the client service.")
+			return
+		}
+		println("Error updating client service:", err.Error())
+		return
+	}
+	println("Client service updated successfully")
 }
 
 func parseErrorResponse(err error) string {
@@ -229,7 +251,7 @@ func processTasks(hostname string, oneShot bool) {
 func processFiveMinuteTasks(hostname string) {
 	println("Processing 5-minute tasks...")
 	processPing(hostname)
-	processSimpleMonitoring(hostname)
+	processBasicMonitoring(hostname)
 }
 
 func processDailyTasks(hostname string) {
@@ -306,11 +328,11 @@ func processPing(hostname string) {
 	println("Ping submitted successfully for", hostname)
 }
 
-func processSimpleMonitoring(hostname string) {
+func processBasicMonitoring(hostname string) {
 	// Process simple monitoring metrics for the given hostname
-	println("Processing uptime for", hostname)
+	println("Processing basic monitoring for", hostname)
 
-	uptime, err := linux_uptime.GetUptime()
+	uptime, err := linux_top.GetUptime()
 	if err != nil {
 		println("Error getting uptime:", err.Error())
 		return
@@ -323,17 +345,25 @@ func processSimpleMonitoring(hostname string) {
 		return
 	}
 
-	statusCode, err := postRequest(config.ApiUrl+"hosts/monitoring/"+hostname, map[string]interface{}{
-		"uptime":          uptime,
-		"load_average":    "",
-		"logged_in_users": loggedInUsers,
+	cpuUsage := linux_top.GetCPUUsage()
+	loadAverage := linux_top.GetLoad()
+	memory := linux_top.GetMemory()
+	tasks := linux_top.GetTasks()
+
+	statusCode, err := postRequest(config.ApiUrl+"hosts/monitoring/"+hostname, map[string]any{
+		"Uptime":        uptime,
+		"LoadAverage":   loadAverage,
+		"LoggedInUsers": loggedInUsers,
+		"CpuUsage":      cpuUsage,
+		"Memory":        memory,
+		"Tasks":         tasks,
 	})
 	if err != nil || statusCode != http.StatusOK {
 		println("Error submitting uptime, status code:", statusCode, "Error:", err.Error())
 		return
 	}
 
-	println("Uptime submitted successfully for", hostname)
+	println("Basic monitoring submitted successfully for", hostname)
 }
 
 func processSystemInfo(hostname string) {
