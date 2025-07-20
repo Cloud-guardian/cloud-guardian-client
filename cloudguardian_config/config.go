@@ -1,16 +1,16 @@
 package cloudguardian_config
 
 import (
-	"fmt"
 	"encoding/json"
-	"os"
 	"errors"
+	"fmt"
+	"os"
 )
 
 type CloudGardianConfig struct {
-	ApiUrl   string `json:"api_url"`   // URL of the Cloud Gardian API
-	ApiKey   string `json:"api_key"`   // API key for authentication
-	Debug    bool   `json:"debug"`     // Debug mode flag
+	ApiUrl string `json:"api_url"` // URL of the Cloud Gardian API
+	ApiKey string `json:"api_key"` // API key for authentication
+	Debug  bool   `json:"debug"`   // Debug mode flag
 }
 
 // DefaultConfig returns a default configuration for Cloud Gardian.
@@ -56,10 +56,11 @@ var (
 )
 
 type InvalidConfigError struct {
-	Msg string
+	Msg      string
 	Location string
-	Err error
+	Err      error
 }
+
 func (e *InvalidConfigError) Error() string {
 	return fmt.Sprintf("Invalid configuration in location %s: %s: %v", e.Location, e.Msg, e.Err)
 }
@@ -68,8 +69,6 @@ func (e *InvalidConfigError) Unwrap() error {
 	return e.Err
 }
 
-
-
 // Try to find the config file:
 func FindAndLoadConfig() (*CloudGardianConfig, error) {
 	// check the following locations:
@@ -77,9 +76,9 @@ func FindAndLoadConfig() (*CloudGardianConfig, error) {
 	// 2. ~/.config/cloud-guardian.json
 	// 3. /etc/cloud-guardian.json
 	locations := []string{
-		"cloud-guardian.json", // Current directory
+		"cloud-guardian.json",                              // Current directory
 		os.Getenv("HOME") + "/.config/cloud-guardian.json", // User config
-		"/etc/cloud-guardian.json", // System-wide config
+		"/etc/cloud-guardian.json",                         // System-wide config
 	}
 	for _, loc := range locations {
 		if _, err := os.Stat(loc); err == nil {
