@@ -101,7 +101,7 @@ func parseLoad(load string) float64 {
 	return value
 }
 
-type CPUUsage struct {
+type CpuUsage struct {
 	User              float64
 	System            float64
 	Nice              float64
@@ -112,10 +112,10 @@ type CPUUsage struct {
 	Steal             float64
 }
 
-func GetCPUUsage() CPUUsage {
-	stat1 := readCPUStat()
+func GetCpuUsage() CpuUsage {
+	stat1 := readCpuStat()
 	time.Sleep(100 * time.Millisecond)
-	stat2 := readCPUStat()
+	stat2 := readCpuStat()
 
 	total1 := sum(stat1)
 	total2 := sum(stat2)
@@ -126,7 +126,7 @@ func GetCPUUsage() CPUUsage {
 		deltas[i] = float64(stat2[i]-stat1[i]) / deltaTotal * 100
 	}
 
-	return CPUUsage{
+	return CpuUsage{
 		User:              round(deltas[0], 2),
 		System:            round(deltas[2], 2),
 		Nice:              round(deltas[1], 2),
@@ -138,7 +138,7 @@ func GetCPUUsage() CPUUsage {
 	}
 }
 
-func readCPUStat() []int64 {
+func readCpuStat() []int64 {
 	file, _ := os.Open("/proc/stat")
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
@@ -154,6 +154,49 @@ func readCPUStat() []int64 {
 		}
 	}
 	return nil
+}
+
+type CpuInfo struct {
+	ModelName string
+	Cores     int
+	Threads   int
+	Mhz       float64
+}
+
+func GetCpuInfo() CpuInfo {
+	file, err := os.Open("/proc/cpuinfo")
+	if err != nil {
+		return CpuInfo{}
+	}
+	defer file.Close()
+
+	var modelName string
+	var cores, threads int
+	var mhz float64
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "model name") {
+			modelName = strings.Split(line, ":")[1]
+		} else if strings.HasPrefix(line, "cpu cores") {
+			cores, _ = strconv.Atoi(strings.Split(line, ":")[1])
+		} else if strings.HasPrefix(line, "siblings") {
+			threads, _ = strconv.Atoi(strings.Split(line, ":")[1])
+		} else if strings.HasPrefix(line, "cpu MHz") {
+			mhzStr := strings.Split(line, ":")[1]
+			mhz, err = strconv.ParseFloat(strings.TrimSpace(mhzStr), 64)
+			if err != nil {
+				mhz = 0.0 // Default to 0 if parsing fails
+			}
+		}
+	}
+
+	return CpuInfo{
+		ModelName: strings.TrimSpace(modelName),
+		Cores:     cores,
+		Threads:   threads,
+		Mhz:       round(mhz, 2),
+	}
 }
 
 type TaskStats struct {

@@ -345,7 +345,8 @@ func processBasicMonitoring(hostname string) {
 		return
 	}
 
-	cpuUsage := linux_top.GetCPUUsage()
+	cpuUsage := linux_top.GetCpuUsage()
+	cpuInfo := linux_top.GetCpuInfo()
 	loadAverage := linux_top.GetLoad()
 	memory := linux_top.GetMemory()
 	tasks := linux_top.GetTasks()
@@ -355,6 +356,7 @@ func processBasicMonitoring(hostname string) {
 		"LoadAverage":   loadAverage,
 		"LoggedInUsers": loggedInUsers,
 		"CpuUsage":      cpuUsage,
+		"CpuInfo":       cpuInfo,
 		"Memory":        memory,
 		"Tasks":         tasks,
 	})
