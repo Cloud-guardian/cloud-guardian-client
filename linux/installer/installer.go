@@ -2,12 +2,12 @@ package linux_installer
 
 import (
 	cgconfig "cloud-guardian/cloudguardian_config"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/exec"
-	"encoding/json"
 )
 
 const (
@@ -15,7 +15,7 @@ const (
 	serviceName        = "cloud-guardian.service"
 	serviceFilePath    = "/etc/systemd/system/" + serviceName
 	serviceDescription = "Cloud Gardian Client Service"
-	configFilePath	   = "/etc/cloud-guardian.json"
+	configFilePath     = "/etc/cloud-guardian.json"
 )
 
 var Config *cgconfig.CloudGardianConfig
@@ -171,6 +171,48 @@ func DisableAndStopService() error {
 	return nil
 }
 
+func Update() error {
+	if !HasRootPrivileges() {
+		return os.ErrPermission // User does not have root privileges
+	}
+
+	// Check if service is installed
+	if _, err := os.Stat(serviceFilePath); os.IsNotExist(err) {
+		log.Fatalf("Service file does not exist at %s. Please install the service first.\n", serviceFilePath)
+	}
+
+	// Check if config file exists
+	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
+		log.Fatalf("Configuration file does not exist at %s. Please install the service first.\n", configFilePath)
+	}
+
+	// Check if service is active
+	if !IsServiceEnabled() {
+		log.Fatalf("Service is not enabled. Please install and enable the service first.\n")
+	}
+
+	selfPath, err := os.Executable()
+	if err != nil {
+		log.Fatalf("Error getting executable path: %v\n", err)
+	}
+
+	if selfPath == targetPath {
+		log.Fatalf("I can not update myself while running from the target path: %s\n", targetPath)
+	}
+
+	DisableAndStopService()
+
+	// Copy binary to /usr/bin
+	if err := copyFile(selfPath, targetPath, 0755); err != nil {
+		log.Fatalf("Error copying binary: %v\n", err)
+	}
+
+	EnableAndStartService()
+
+	fmt.Println("Client updated successfully.")
+	return nil
+}
+
 func Install() error {
 	if !HasRootPrivileges() {
 		return os.ErrPermission // User does not have root privileges
@@ -218,7 +260,7 @@ func Uninstall() error {
 		if err := os.Remove(serviceFilePath); err != nil {
 			log.Fatalf("Error removing service file: %v\n", err)
 		}
-	} 	
+	}
 
 	// Remove the binary
 	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
