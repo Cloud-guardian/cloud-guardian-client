@@ -193,12 +193,13 @@ func Install() error {
 		log.Fatalf("Error creating systemd service: %v\n", err)
 	}
 
-	EnableAndStartService()
-
 	// Create the configuration file
 	if err := createConfigFile(configFilePath); err != nil {
 		log.Fatalf("Error creating config file: %v\n", err)
 	}
+
+	EnableAndStartService()
+
 	return nil
 }
 
