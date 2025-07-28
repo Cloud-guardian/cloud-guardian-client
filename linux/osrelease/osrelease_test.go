@@ -183,7 +183,5 @@ func TestParseRocky(t *testing.T) {
 		t.Errorf("Test failed on VERSION_ID: want '9.5', got '%s'\n", Release.VersionID)
 	case Release.HomeURL != "https://rockylinux.org/":
 		t.Errorf("test failed on HOME_URL: want 'https://rockylinux.org/', got '%s'\n", Release.HomeURL)
-	default:
-		fmt.Println("All tests passed for Rocky Linux 9.5")
 	}
 }

@@ -2,12 +2,11 @@ package linux_installer
 
 import (
 	cgconfig "cloud-guardian/cloudguardian_config"
-	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 const (
@@ -44,39 +43,9 @@ func copyFile(src, dst string, filemode os.FileMode) error {
 
 func execCommand(name string, args ...string) {
 	cmd := exec.Command(name, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("Failed to run command: %s %v\nError: %v\n", name, args, err)
 	}
-}
-
-func createConfigFile(filename string) error {
-
-	defaultApiUrl := cgconfig.DefaultConfig().ApiUrl
-
-	configFileContent := map[string]any{
-		"api_key": Config.ApiKey,
-	}
-
-	if Config.ApiUrl != defaultApiUrl {
-		configFileContent["api_url"] = Config.ApiUrl
-	}
-
-	if Config.Debug {
-		configFileContent["debug"] = true
-	}
-
-	// Marshal the config map into JSON with indentation
-	jsonConfig, err := json.MarshalIndent(configFileContent, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(filename, []byte(jsonConfig), 0644); err != nil {
-		log.Fatalf("Error writing config file: %v\n", err)
-	}
-	return nil
 }
 
 func createSystemdService() error {
@@ -94,22 +63,14 @@ WantedBy=multi-user.target
 	if err := os.WriteFile(serviceFilePath, []byte(serviceFileContent), 0644); err != nil {
 		log.Fatalf("Error writing service file: %v\n", err)
 	}
-	fmt.Printf("Installed systemd service at %s\n", serviceFilePath)
+	log.Printf("Installed systemd service at %s\n", serviceFilePath)
 	return nil
 }
 
 func EnableAndStartService() error {
-	println("Enabling and starting the service...")
 	if !HasRootPrivileges() {
 		return os.ErrPermission // User does not have root privileges
 	}
-
-	// // Create the service file if it doesn't exist
-	// if _, err := os.Stat(serviceFilePath); os.IsNotExist(err) {
-	// 	if err := createSystemdService(); err != nil {
-	// 		log.Fatalf("Error creating systemd service: %v\n", err)
-	// 	}
-	// }
 
 	// Reload systemd to ensure it recognizes the new service file
 	execCommand("systemctl", "daemon-reexec")
@@ -121,16 +82,17 @@ func EnableAndStartService() error {
 	// Start the service
 	execCommand("systemctl", "start", serviceName)
 
-	fmt.Println("Service enabled and started successfully.")
 	return nil
 }
 
 func IsServiceRunning() bool {
-	cmd := exec.Command("systemctl", "is-active", "--quiet", serviceName)
-	err := cmd.Run()
+	command := exec.Command("systemctl", "is-active", serviceName)
+	var out strings.Builder
+	command.Stdout = &out
+	err := command.Run()
 	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok && exitError.ExitCode() == 3 {
-			// Service is inactive
+		// Check if service is inactive by examining output
+		if string(out.String()) == "inactive\n" {
 			return false
 		}
 		log.Fatalf("Failed to check service status: %v\n", err)
@@ -139,12 +101,18 @@ func IsServiceRunning() bool {
 }
 
 func IsServiceEnabled() bool {
-	cmd := exec.Command("systemctl", "is-enabled", "--quiet", serviceName)
-	err := cmd.Run()
+	command := exec.Command("systemctl", "is-enabled", serviceName)
+	var stdout strings.Builder
+	var stderr strings.Builder
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+	err := command.Run()
 	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok && exitError.ExitCode() == 1 {
-			// Service is not enabled
-			return false
+		if strings.Contains(stdout.String(), "disabled") || strings.Contains(stdout.String(), "not-found") {
+			return false // Service is not enabled or does not exist
+		}
+		if strings.Contains(stderr.String(), "Failed to get unit file state for") && strings.Contains(stderr.String(), "No such file or directory") {
+			return false // Service does not exist
 		}
 		log.Fatalf("Failed to check service enabled status: %v\n", err)
 	}
@@ -152,7 +120,6 @@ func IsServiceEnabled() bool {
 }
 
 func DisableAndStopService() error {
-	println("Disabling and stopping the service...")
 	if !HasRootPrivileges() {
 		return os.ErrPermission // User does not have root privileges
 	}
@@ -167,7 +134,6 @@ func DisableAndStopService() error {
 		execCommand("systemctl", "disable", serviceName)
 	}
 
-	fmt.Println("Service disabled and stopped successfully.")
 	return nil
 }
 
@@ -200,16 +166,20 @@ func Update() error {
 		log.Fatalf("I can not update myself while running from the target path: %s\n", targetPath)
 	}
 
-	DisableAndStopService()
+	if err := DisableAndStopService(); err != nil {
+		log.Fatalf("Error disabling and stopping service: %v\n", err)
+	}
 
 	// Copy binary to /usr/bin
 	if err := copyFile(selfPath, targetPath, 0755); err != nil {
 		log.Fatalf("Error copying binary: %v\n", err)
 	}
 
-	EnableAndStartService()
+	if err := EnableAndStartService(); err != nil {
+		log.Fatalf("Error enabling and starting service: %v\n", err)
+	}
 
-	fmt.Println("Client updated successfully.")
+	log.Println("Client updated successfully.")
 	return nil
 }
 
@@ -223,7 +193,9 @@ func Install() error {
 		log.Fatalf("Error getting executable path: %v\n", err)
 	}
 
-	DisableAndStopService()
+	if err := DisableAndStopService(); err != nil {
+		log.Fatalf("Error disabling and stopping service: %v\n", err)
+	}
 
 	// Copy binary to /usr/bin
 	if err := copyFile(selfPath, targetPath, 0755); err != nil {
@@ -236,11 +208,13 @@ func Install() error {
 	}
 
 	// Create the configuration file
-	if err := createConfigFile(configFilePath); err != nil {
+	if err := Config.Save(configFilePath); err != nil {
 		log.Fatalf("Error creating config file: %v\n", err)
 	}
 
-	EnableAndStartService()
+	if err := EnableAndStartService(); err != nil {
+		log.Fatalf("Error enabling and starting service: %v\n", err)
+	}
 
 	return nil
 }
@@ -276,6 +250,6 @@ func Uninstall() error {
 		}
 	}
 
-	fmt.Println("Uninstalled successfully.")
+	log.Println("Uninstalled successfully.")
 	return nil
 }

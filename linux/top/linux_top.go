@@ -2,7 +2,7 @@ package linux_top
 
 import (
 	"bufio"
-	"fmt"
+	"log"
 	"math"
 	"os"
 	"strconv"
@@ -95,7 +95,7 @@ func GetLoad() LoadAverage {
 func parseLoad(load string) float64 {
 	value, err := strconv.ParseFloat(load, 64)
 	if err != nil {
-		fmt.Printf("Error parsing load average: %v\n", err)
+		log.Printf("Error parsing load average: %v\n", err)
 		return 0.0
 	}
 	return value
@@ -177,22 +177,18 @@ func GetCpuInfo() CpuInfo {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "model name") {
-			modelName = strings.Split(line, ":")[1]
+			modelName = extractStringFromKV(line)
 		} else if strings.HasPrefix(line, "cpu cores") {
-			cores, _ = strconv.Atoi(strings.Split(line, ":")[1])
+			cores = extractIntFromKV(line)
 		} else if strings.HasPrefix(line, "siblings") {
-			threads, _ = strconv.Atoi(strings.Split(line, ":")[1])
+			threads = extractIntFromKV(line)
 		} else if strings.HasPrefix(line, "cpu MHz") {
-			mhzStr := strings.Split(line, ":")[1]
-			mhz, err = strconv.ParseFloat(strings.TrimSpace(mhzStr), 64)
-			if err != nil {
-				mhz = 0.0 // Default to 0 if parsing fails
-			}
+			mhz = extractFloatFromKV(line)
 		}
 	}
 
 	return CpuInfo{
-		ModelName: strings.TrimSpace(modelName),
+		ModelName: modelName,
 		Cores:     cores,
 		Threads:   threads,
 		Mhz:       round(mhz, 2),
@@ -269,4 +265,24 @@ func sum(arr []int64) int64 {
 		total += v
 	}
 	return total
+}
+
+func extractIntFromKV(line string) int {
+	result, err := strconv.Atoi(extractStringFromKV(line))
+	if err != nil {
+		return 0 // Default to 0 if parsing fails
+	}
+	return result
+}
+
+func extractStringFromKV(line string) string {
+	return strings.TrimSpace(strings.Split(line, ":")[1])
+}
+
+func extractFloatFromKV(line string) float64 {
+	result, err := strconv.ParseFloat(extractStringFromKV(line), 64)
+	if err != nil {
+		return 0.0 // Default to 0 if parsing fails
+	}
+	return result
 }

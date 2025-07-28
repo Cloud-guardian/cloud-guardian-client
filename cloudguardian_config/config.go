@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 )
 
 type CloudGardianConfig struct {
@@ -23,11 +24,17 @@ func DefaultConfig() *CloudGardianConfig {
 }
 
 // Validate checks if the configuration is valid.
-func (c *CloudGardianConfig) Validate() error {
-	if c.ApiUrl == "" {
+func (config *CloudGardianConfig) Validate() error {
+	if config.ApiUrl == "" {
 		return fmt.Errorf("api_url cannot be empty")
 	}
-	if c.ApiKey != "" && len(c.ApiKey) != 32 {
+	if !strings.HasSuffix(config.ApiUrl, "/") {
+		return fmt.Errorf("api_url must end with a /")
+	}
+	if !strings.HasPrefix(config.ApiUrl, "http://") && !strings.HasPrefix(config.ApiUrl, "https://") {
+		return fmt.Errorf("api_url must start with http:// or https://")
+	}
+	if config.ApiKey != "" && len(config.ApiKey) != 32 {
 		return fmt.Errorf("api_key must be exactly 32 characters long")
 	}
 	return nil
@@ -48,7 +55,42 @@ func LoadConfig(filename string) (*CloudGardianConfig, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
+	// Ensure the API URL ends with a slash
+	if !strings.HasSuffix(config.ApiUrl, "/") {
+		config.ApiUrl += "/"
+	}
 	return config, nil
+}
+
+// Save config to a file.
+func (config *CloudGardianConfig) Save(filename string) error {
+
+	if err := config.Validate(); err != nil {
+		return fmt.Errorf("invalid config: %w", err)
+	}
+
+	defaultApiUrl := DefaultConfig().ApiUrl
+
+	configFileContent := map[string]any{
+		"api_key": config.ApiKey,
+	}
+
+	if config.ApiUrl != defaultApiUrl {
+		configFileContent["api_url"] = config.ApiUrl
+	}
+
+	if config.Debug {
+		configFileContent["debug"] = true
+	}
+
+	jsonData, err := json.MarshalIndent(configFileContent, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+	if err := os.WriteFile(filename, jsonData, 0644); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+	return nil
 }
 
 var (

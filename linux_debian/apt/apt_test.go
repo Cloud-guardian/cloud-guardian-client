@@ -1,7 +1,6 @@
 package linux_debian_apt
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -50,7 +49,6 @@ func TestParseUpdates(t *testing.T) {
 	// Check if expected update is present
 	found := false
 	for _, update := range updates {
-		fmt.Println(update.Name + " - " + update.Version + " (" + update.Repo + ")")
 		if update == expectedUpdate {
 			found = true
 			break

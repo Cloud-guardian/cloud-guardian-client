@@ -1,7 +1,6 @@
 package linux_redhat_dnf
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -153,8 +152,6 @@ func TestParseInstalledPackages(t *testing.T) {
 
 	if !found {
 		t.Errorf("Expected package %s with version %s not found in installed packages", expectedPackageName, expectedPackageVersion)
-	} else {
-		fmt.Println("Found expected package:", expectedPackageName, "with version:", expectedPackageVersion)
 	}
 }
 
@@ -169,11 +166,9 @@ func TestParseUpdates(t *testing.T) {
 		if len(updates) != expectedUpdates {
 			t.Errorf("Expected %d updates, but got %d", expectedUpdates, len(updates))
 		}
-		fmt.Println("Updates found: ", len(updates))
 		var foundExpectedUpdate bool
 		foundExpectedUpdate = false
 		for _, update := range updates {
-			fmt.Println(update.Name + " - " + update.Version + " (" + update.Repo + ")")
 			if update.Name+" "+update.Version+" "+update.Repo == expectedUpdate {
 				foundExpectedUpdate = true
 			}
@@ -185,11 +180,6 @@ func TestParseUpdates(t *testing.T) {
 
 	if len(obsolete) == 0 {
 		t.Error("Expected obsolete packages, but got none")
-	} else {
-		fmt.Println("Obsolete packages found: ", len(obsolete))
-		for _, obsoleted := range obsolete {
-			fmt.Println(obsoleted)
-		}
 	}
 }
 
@@ -198,17 +188,10 @@ func TestParseUpdatesNoObsolete(t *testing.T) {
 
 	if len(updates) == 0 {
 		t.Error("Expected updates, but got none")
-	} else {
-		fmt.Println("Updates found: ", len(updates))
-		for _, update := range updates {
-			fmt.Println(update.Name + " - " + update.Version + " (" + update.Repo + ")")
-		}
 	}
 
 	if len(obsolete) != 0 {
 		t.Error("Expected no obsolete packages, but got some")
-	} else {
-		fmt.Println("No obsolete packages found as expected.")
 	}
 }
 
@@ -217,14 +200,10 @@ func TestParseUpdatesNoUpdates(t *testing.T) {
 
 	if len(updates) != 0 {
 		t.Error("Expected no updates, but got some")
-	} else {
-		fmt.Println("No updates found as expected.")
 	}
 
 	if len(obsolete) != 0 {
 		t.Error("Expected no obsolete packages, but got some")
-	} else {
-		fmt.Println("No obsolete packages found as expected.")
 	}
 }
 
@@ -261,8 +240,6 @@ func TestParseUpdateSummary(t *testing.T) {
 
 	if summary != expectedSummary {
 		t.Errorf("Expected summary %+v, got %+v", expectedSummary, summary)
-	} else {
-		fmt.Println("Update summary parsed correctly:", summary)
 	}
 }
 
@@ -278,8 +255,6 @@ func TestParseUpdateSummaryEmpty(t *testing.T) {
 
 	if summary != expectedSummary {
 		t.Errorf("Expected empty summary %+v, got %+v", expectedSummary, summary)
-	} else {
-		fmt.Println("Empty update summary parsed correctly:", summary)
 	}
 }
 
@@ -295,8 +270,6 @@ func TestParseUpdateSummaryNoUpdates(t *testing.T) {
 
 	if summary != expectedSummary {
 		t.Errorf("Expected no updates summary %+v, got %+v", expectedSummary, summary)
-	} else {
-		fmt.Println("No updates summary parsed correctly:", summary)
 	}
 }
 
@@ -312,7 +285,5 @@ func TestParseUpdateSummaryOnlySecurityUpdates(t *testing.T) {
 
 	if summary != expectedSummary {
 		t.Errorf("Expected only security updates summary %+v, got %+v", expectedSummary, summary)
-	} else {
-		fmt.Println("Only security updates summary parsed correctly:", summary)
 	}
 }

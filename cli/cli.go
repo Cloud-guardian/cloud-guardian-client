@@ -24,8 +24,6 @@ import (
 var Version = "fdev"    // Default version, can be overridden at build time with -ldflags "-X main.version=x.x.x"
 const apiKeyLength = 32 // Length of the API key, used for validation
 
-// var ApiUrl = "https://api.cloud-guardian.net/cloudguardian-api/v1/"
-// var debug = false
 var config *cloudguardian_config.CloudGardianConfig // Configuration for the Cloud Gardian client
 
 func IsValidApiKey(apiKey string) bool {
@@ -44,7 +42,7 @@ func Start() {
 		debugFlag     = flag.Bool("debug", false, "Enable debug mode")
 		apiUrlFlag    = flag.String("api-url", "", "API URL to submit updates")
 		apiKeyFlag    = flag.String("api-key", "", "API key for authentication (required)")
-		oneShotFlag   = flag.Bool("oneshot", false, "Run in oneshot mode (process updates and exit)")
+		oneShotFlag   = flag.Bool("one-shot", false, "Run in oneshot mode (process updates and exit)")
 		installFlag   = flag.Bool("install", false, "Install the client as a system service (also registers the client)")
 		updateFlag    = flag.Bool("update", false, "Update the client to the latest version (if available)")
 		uninstallFlag = flag.Bool("uninstall", false, "Uninstall the client service (if installed)")
@@ -75,20 +73,20 @@ func Start() {
 		// Check with regex if the API key is valid. A valid API key is 32 characters long and contains only alphanumeric characters in lowercase:
 		if IsValidApiKey(extractedApiKey) {
 			config.ApiKey = extractedApiKey
-			println("API key extracted from program name:", config.ApiKey)
+			log.Println("API key extracted from program name:", config.ApiKey)
 		}
 	}
 
 	if *uninstallFlag {
 		// Uninstall the client service
-		println("Uninstalling client service...")
+		log.Println("Uninstalling client service...")
 		if err := linux_installer.Uninstall(); err != nil {
 			if os.IsPermission(err) {
 				log.Fatal("Error: You need to run this command with root privileges to uninstall the client service.")
 			}
 			log.Fatal("Error uninstalling client service:", err.Error())
 		}
-		println("Client service uninstalled successfully.")
+		log.Println("Client service uninstalled successfully.")
 		return
 	}
 
@@ -99,7 +97,7 @@ func Start() {
 
 	if *debugFlag {
 		// Enable debug mode
-		println("Debug mode enabled")
+		log.Println("Debug mode enabled")
 		config.Debug = true
 	}
 
@@ -107,21 +105,23 @@ func Start() {
 		// Set the API key if provided
 		config.ApiKey = *apiKeyFlag
 	} else if config.ApiKey == "" {
-		println("Error: API key is required. Use --api-key to set it.")
+		log.Fatal("Error: API key is required. Use --api-key to set it.")
 		return
 	}
 
 	if *apiUrlFlag != "" {
 		// Override the default API URL if provided
-		config.ApiUrl = *apiUrlFlag
-		println("Using API URL:", config.ApiUrl)
-	} else {
-		println("Using default API URL:", config.ApiUrl)
+		apiUrl := *apiUrlFlag
+		if !strings.HasSuffix(apiUrl, "/") {
+			// Ensure the API URL ends with a slash
+			apiUrl += "/"
+		}
+		config.ApiUrl = apiUrl
 	}
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		println("Error getting hostname:", err.Error())
+		log.Println("Error getting hostname:", err.Error())
 		return
 	}
 
@@ -148,21 +148,21 @@ func Start() {
 
 func InstallService(hostname string) {
 	// Install the client as a system service
-	println("Installing client as a system service...")
+	log.Println("Installing client as a system service...")
 
 	linux_installer.Config = config // Set the configuration for the installer
 
 	if err := linux_installer.Install(); err != nil {
 		// check if error is os.ErrPermission, which indicates that the user does not have root privileges
 		if os.IsPermission(err) {
-			println("Error: You need to run this command with root privileges to install the client as a system service.")
+			log.Println("Error: You need to run this command with root privileges to install the client as a system service.")
 			return
 		}
-		println("Error installing client as a system service:", err.Error())
+		log.Println("Error installing client as a system service:", err.Error())
 		return
 	}
 
-	println("Client installed as a system service")
+	log.Println("Client installed as a system service")
 
 	// Register the client with the API after installing as a service
 	registerClient(hostname)
@@ -174,13 +174,13 @@ func UpdateService() {
 	if err := linux_installer.Update(); err != nil {
 		// check if error is os.ErrPermission, which indicates that the user does not have root privileges
 		if os.IsPermission(err) {
-			println("Error: You need to run this command with root privileges to update the client service.")
+			log.Println("Error: You need to run this command with root privileges to update the client service.")
 			return
 		}
-		println("Error updating client service:", err.Error())
+		log.Println("Error updating client service:", err.Error())
 		return
 	}
-	println("Client service updated successfully")
+	log.Println("Client service updated successfully")
 }
 
 func parseErrorResponse(err error) string {
@@ -197,21 +197,42 @@ func parseErrorResponse(err error) string {
 
 func registerClient(hostname string) {
 	// Register the client with the API
-	println("Registering client with hostname:", hostname)
+	log.Println("Registering client with hostname:", hostname)
 
 	statusCode, err := postRequest(config.ApiUrl+"hosts/register/"+hostname, map[string]any{})
 	if err != nil {
-		println(parseErrorResponse(err))
+		log.Println(parseErrorResponse(err))
 		return
 	}
 	if statusCode != http.StatusOK {
-		println("Error registering client, status code:", statusCode)
+		handleAPIError("Error registering client", statusCode)
 		return
 	}
-	println("Client registered successfully with hostname:", hostname)
+	log.Println("Client registered successfully with hostname:", hostname)
+}
+
+func handleAPIError(errorMsg string, statusCode int) {
+	// Handle API errors by printing the error message and status code
+	// 4xx are user errors, we log them and then quit because the user needs to fix something
+	if statusCode == 404 {
+		log.Fatal("API URL is incorrect: ", config.ApiUrl)
+	}
+	if statusCode == 401 {
+		log.Fatal("Invalid API key. Please check your API key in the configuration file or command line arguments.")
+	}
+	if statusCode >= 400 && statusCode < 500 {
+		log.Println(errorMsg, "(Client error) - Status code:", statusCode)
+		return
+	}
+	// Everything above 500 is considered a server error, we log it
+	if statusCode >= 500 {
+		log.Println(errorMsg)
+	}
 }
 
 func processTasks(hostname string, oneShot bool) {
+
+	log.Println("Using API URL:", config.ApiUrl)
 
 	var minuteCounter int = 0
 
@@ -233,7 +254,7 @@ func processTasks(hostname string, oneShot bool) {
 
 		if oneShot {
 			// If in oneshot mode, exit after processing tasks
-			println("Exiting after oneshot execution.")
+			log.Println("Exiting after oneshot execution.")
 			return
 		}
 
@@ -249,18 +270,18 @@ func processTasks(hostname string, oneShot bool) {
 }
 
 func processFiveMinuteTasks(hostname string) {
-	println("Processing 5-minute tasks...")
+	log.Println("Processing 5-minute tasks...")
 	processPing(hostname)
 	processBasicMonitoring(hostname)
 }
 
 func processDailyTasks(hostname string) {
-	println("Processing daily tasks...")
+	log.Println("Processing daily tasks...")
 
 	// Detect package manager
 	packageManager, err := pm.DetectPackageManager()
 	if err != nil {
-		println("Error detecting package manager:", err.Error())
+		log.Println("Error detecting package manager:", err.Error())
 		return
 	}
 	processSystemInfo(hostname)
@@ -271,7 +292,7 @@ func processDailyTasks(hostname string) {
 
 func processHourlyTasks(hostname string) {
 	// This function can be used to process hourly tasks if needed
-	println("Processing hourly tasks...")
+	log.Println("Processing hourly tasks...")
 	// For example, you can call processPing or other functions here
 }
 
@@ -292,19 +313,19 @@ func postRequest(url string, data interface{}) (int, error) {
 	client := &http.Client{}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		println("Error marshalling system info to JSON:", err.Error())
+		log.Println("Error marshalling system info to JSON:", err.Error())
 		return 500, err
 	}
 	req, err := http.NewRequest("POST", url, strings.NewReader(string(jsonData)))
 	if err != nil {
-		println("Error creating request:", err.Error())
+		log.Println("Error creating request:", err.Error())
 		return 500, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-api-key", config.ApiKey)
 	resp, err := client.Do(req)
 	if err != nil {
-		println("Error sending request:", err.Error())
+		log.Println("Error sending request:", err.Error())
 		return 500, err
 	}
 	defer resp.Body.Close()
@@ -317,31 +338,31 @@ func postRequest(url string, data interface{}) (int, error) {
 
 func processPing(hostname string) {
 	// Process ping for the given hostname
-	println("Processing ping for", hostname)
+	log.Println("Processing ping for", hostname)
 
 	statusCode, err := postRequest(config.ApiUrl+"hosts/ping/"+hostname, map[string]any{})
 
 	if err != nil || statusCode != http.StatusOK {
-		println("Error submitting ping, status code:", statusCode)
+		handleAPIError("Error submitting ping", statusCode)
 		return
 	}
-	println("Ping submitted successfully for", hostname)
+	log.Println("Ping submitted successfully for", hostname)
 }
 
 func processBasicMonitoring(hostname string) {
 	// Process simple monitoring metrics for the given hostname
-	println("Processing basic monitoring for", hostname)
+	log.Println("Processing basic monitoring for", hostname)
 
 	uptime, err := linux_top.GetUptime()
 	if err != nil {
-		println("Error getting uptime:", err.Error())
+		log.Println("Error getting uptime:", err.Error())
 		return
 	}
 
 	// Get logged in users
 	loggedInUsers, err := linux_loggedinusers.GetLoggedInUsers()
 	if err != nil {
-		println("Error getting logged in users:", err.Error())
+		log.Println("Error getting logged in users:", err.Error())
 		return
 	}
 
@@ -361,11 +382,11 @@ func processBasicMonitoring(hostname string) {
 		"Tasks":         tasks,
 	})
 	if err != nil || statusCode != http.StatusOK {
-		println("Error submitting uptime, status code:", statusCode, "Error:", err.Error())
+		handleAPIError("Error submitting basic monitoring data", statusCode)
 		return
 	}
 
-	println("Basic monitoring submitted successfully for", hostname)
+	log.Println("Basic monitoring submitted successfully for", hostname)
 }
 
 func processSystemInfo(hostname string) {
@@ -374,9 +395,9 @@ func processSystemInfo(hostname string) {
 	linux_osrelease.GetOsReleaseInfo()
 	// The operating system:
 	if config.Debug {
-		println("##########################################")
-		println("Name" + linux_osrelease.Release.Name + " " + linux_osrelease.Release.VersionID)
-		println("##########################################")
+		log.Println("##########################################")
+		log.Println("Name" + linux_osrelease.Release.Name + " " + linux_osrelease.Release.VersionID)
+		log.Println("##########################################")
 	}
 	statusCode, err := postRequest(config.ApiUrl+"hosts/osinfo/"+hostname, map[string]interface{}{
 		"os_name":               linux_osrelease.Release.Name,
@@ -386,63 +407,63 @@ func processSystemInfo(hostname string) {
 		"agent_running_as_root": linux_installer.HasRootPrivileges(),
 	})
 	if err != nil || statusCode != http.StatusOK {
-		println("Error submitting system info, status code:", statusCode)
+		handleAPIError("Error submitting system info", statusCode)
 		return
 	}
 
-	println("System information submitted successfully for", hostname)
+	log.Println("System information submitted successfully for", hostname)
 }
 
 func processInstalledPackages(hostname string, packageManager pm.PackageManager) {
 	// Process installed packages for the given hostname
 	packages, err := packageManager.GetInstalledPackages()
 	if err != nil {
-		println("Error getting installed packages:", err.Error())
+		log.Println("Error getting installed packages:", err.Error())
 		return
 	}
 
 	if config.Debug {
-		println("##########################################")
-		println("Installed packages for", hostname)
+		log.Println("##########################################")
+		log.Println("Installed packages for", hostname)
 		for _, pkg := range packages {
-			println(pkg.Name + " - " + pkg.Version + " (" + pkg.Repo + ")")
+			log.Println(pkg.Name + " - " + pkg.Version + " (" + pkg.Repo + ")")
 		}
-		println("##########################################")
+		log.Println("##########################################")
 	}
 
 	statusCode, err := postRequest(config.ApiUrl+"hosts/packages/"+hostname, map[string]interface{}{
 		"packages": formatPackages(packages),
 	})
 	if err != nil || statusCode != http.StatusOK {
-		println("Error submitting installed packages, status code:", statusCode)
+		handleAPIError("Error submitting installed packages", statusCode)
 		return
 	}
-	println("Installed packages submitted successfully for", hostname)
+	log.Println("Installed packages submitted successfully for", hostname)
 }
 
 func processUpdates(hostname string, updateType pm.UpdateType, packageManager pm.PackageManager) {
 	// Process updates for the given hostname
 	updates, obsolete, err := packageManager.CheckUpdates(updateType)
 	if err != nil {
-		println("Error checking updates:", err.Error())
+		log.Println("Error checking updates:", err.Error())
 		return
 	}
 	if config.Debug {
-		println("##########################################")
+		log.Println("##########################################")
 		switch updateType {
 		case pm.SecurityUpdates:
-			println("Security updates available for", hostname)
+			log.Println("Security updates available for", hostname)
 		default:
-			println("Updates available for", hostname)
+			log.Println("Updates available for", hostname)
 		}
 		for _, update := range updates {
-			println(update.Name + " - " + update.Version + " (" + update.Repo + ")")
+			log.Println(update.Name + " - " + update.Version + " (" + update.Repo + ")")
 		}
-		println("Obsolete packages for", hostname)
+		log.Println("Obsolete packages for", hostname)
 		for _, obso := range obsolete {
-			println(obso.Name + " - " + obso.Version + " (" + obso.Repo + ")")
+			log.Println(obso.Name + " - " + obso.Version + " (" + obso.Repo + ")")
 		}
-		println("##########################################")
+		log.Println("##########################################")
 	}
 
 	// Submit updates to the API
@@ -458,13 +479,13 @@ func processUpdates(hostname string, updateType pm.UpdateType, packageManager pm
 		"updates": formatPackages(updates),
 	})
 	if err != nil || statusCode != http.StatusOK {
-		println("Error submitting updates, status code:", statusCode)
+		handleAPIError("Error submitting updates", statusCode)
 		return
 	}
-	println("Updates submitted successfully for", hostname)
+	log.Println("Updates submitted successfully for", hostname)
 }
 
 func printVersion() {
 	// Print version information
-	println("Version:", Version)
+	log.Println("Version:", Version)
 }
