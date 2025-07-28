@@ -28,6 +28,8 @@ go.work
 *.swo
 *~
 
+tmp/
+
 # OS generated files
 .DS_Store
 .DS_Store?
@@ -44,4 +46,5 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+.envrc
 test_containers
