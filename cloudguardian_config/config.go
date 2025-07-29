@@ -34,8 +34,8 @@ func (config *CloudGardianConfig) Validate() error {
 	if !strings.HasPrefix(config.ApiUrl, "http://") && !strings.HasPrefix(config.ApiUrl, "https://") {
 		return fmt.Errorf("api_url must start with http:// or https://")
 	}
-	if config.ApiKey != "" && len(config.ApiKey) != 32 {
-		return fmt.Errorf("api_key must be exactly 32 characters long")
+	if config.ApiKey != "" && len(config.ApiKey) != 16 {
+		return fmt.Errorf("api_key must be exactly 16 characters long")
 	}
 	return nil
 }

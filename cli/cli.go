@@ -22,12 +22,12 @@ import (
 )
 
 var Version = "fdev"    // Default version, can be overridden at build time with -ldflags "-X main.version=x.x.x"
-const apiKeyLength = 32 // Length of the API key, used for validation
+const apiKeyLength = 16 // Length of the API key, used for validation
 
 var config *cloudguardian_config.CloudGardianConfig // Configuration for the Cloud Gardian client
 
 func IsValidApiKey(apiKey string) bool {
-	// A valid API key is 32 characters long and contains only alphanumeric characters in lowercase
+	// A valid API key is 16 characters long and contains only alphanumeric characters in lowercase
 	if len(apiKey) != apiKeyLength {
 		return false
 	}
