@@ -95,6 +95,9 @@ func IsServiceRunning() bool {
 		if string(out.String()) == "inactive\n" {
 			return false
 		}
+		if string(out.String()) == "failed\n" {
+			return false
+		}
 		log.Fatalf("Failed to check service status: %v\n", err)
 	}
 	return true // Service is active
