@@ -35,10 +35,17 @@ func parseLoggedInUsers(output string) []LoggedInUser {
 		}
 		// Split the line by whitespace and take the first part as username
 		parts := strings.Fields(line)
-		host := parts[4]
-		// strip the ( and ) from the host if it exists
-		if strings.HasPrefix(host, "(") && strings.HasSuffix(host, ")") {
-			host = strings.TrimSuffix(strings.TrimPrefix(host, "("), ")")
+		if len(parts) < 4 {
+			continue // Skip lines that do not have enough parts
+		}
+		host := ""
+		// If there are more than 4 parts, the last part is the host
+		if len(parts) > 4 {
+			host = parts[4]
+			// strip the ( and ) from the host if it exists
+			if strings.HasPrefix(host, "(") && strings.HasSuffix(host, ")") {
+				host = strings.TrimSuffix(strings.TrimPrefix(host, "("), ")")
+			}
 		}
 		if len(parts) > 0 {
 			users = append(users, LoggedInUser{
