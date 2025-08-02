@@ -8,15 +8,16 @@ import (
 	"strings"
 )
 
-type CloudGardianConfig struct {
-	ApiUrl string `json:"api_url"` // URL of the Cloud Gardian API
-	ApiKey string `json:"api_key"` // API key for authentication
-	Debug  bool   `json:"debug"`   // Debug mode flag
+type CloudGuardianConfig struct {
+	ApiUrl          string `json:"api_url"`                     // URL of the Cloud Gardian API
+	ApiKey          string `json:"api_key"`                     // API key for authentication
+	HostSecurityKey string `json:"host_security_key,omitempty"` // Optional host security key
+	Debug           bool   `json:"debug"`                       // Debug mode flag
 }
 
 // DefaultConfig returns a default configuration for Cloud Gardian.
-func DefaultConfig() *CloudGardianConfig {
-	return &CloudGardianConfig{
+func DefaultConfig() *CloudGuardianConfig {
+	return &CloudGuardianConfig{
 		ApiUrl: "https://api.cloud-guardian.net/cloudguardian-api/v1/",
 		ApiKey: "",
 		Debug:  false,
@@ -24,7 +25,7 @@ func DefaultConfig() *CloudGardianConfig {
 }
 
 // Validate checks if the configuration is valid.
-func (config *CloudGardianConfig) Validate() error {
+func (config *CloudGuardianConfig) Validate() error {
 	if config.ApiUrl == "" {
 		return fmt.Errorf("api_url cannot be empty")
 	}
@@ -41,7 +42,7 @@ func (config *CloudGardianConfig) Validate() error {
 }
 
 // Load config from a file.
-func LoadConfig(filename string) (*CloudGardianConfig, error) {
+func LoadConfig(filename string) (*CloudGuardianConfig, error) {
 	config := DefaultConfig()
 	// Load config from json file:
 	jsonData, err := os.ReadFile(filename)
@@ -63,7 +64,7 @@ func LoadConfig(filename string) (*CloudGardianConfig, error) {
 }
 
 // Save config to a file.
-func (config *CloudGardianConfig) Save(filename string) error {
+func (config *CloudGuardianConfig) Save(filename string) error {
 
 	if err := config.Validate(); err != nil {
 		return fmt.Errorf("invalid config: %w", err)
@@ -77,6 +78,10 @@ func (config *CloudGardianConfig) Save(filename string) error {
 
 	if config.ApiUrl != defaultApiUrl {
 		configFileContent["api_url"] = config.ApiUrl
+	}
+
+	if config.HostSecurityKey != "" {
+		configFileContent["host_security_key"] = config.HostSecurityKey
 	}
 
 	if config.Debug {
@@ -112,7 +117,7 @@ func (e *InvalidConfigError) Unwrap() error {
 }
 
 // Try to find the config file:
-func FindAndLoadConfig() (*CloudGardianConfig, error) {
+func FindAndLoadConfig() (*CloudGuardianConfig, error) {
 	// check the following locations:
 	// 1. Current directory
 	// 2. ~/.config/cloud-guardian.json

@@ -2,13 +2,16 @@ package cli
 
 import (
 	"cloud-guardian/cloudguardian_config"
+	cloudguardian_crypto "cloud-guardian/crypto"
 	linux_container "cloud-guardian/linux/container"
+	linux_df "cloud-guardian/linux/df"
 	linux_installer "cloud-guardian/linux/installer"
 	linux_loggedinusers "cloud-guardian/linux/loggedinusers"
 	linux_osrelease "cloud-guardian/linux/osrelease"
 	pm "cloud-guardian/linux/packagemanager"
 	linux_top "cloud-guardian/linux/top"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -24,7 +27,7 @@ import (
 var Version = "fdev"    // Default version, can be overridden at build time with -ldflags "-X main.version=x.x.x"
 const apiKeyLength = 16 // Length of the API key, used for validation
 
-var config *cloudguardian_config.CloudGardianConfig // Configuration for the Cloud Gardian client
+var config *cloudguardian_config.CloudGuardianConfig // Configuration for the Cloud Gardian client
 
 func IsValidApiKey(apiKey string) bool {
 	// A valid API key is 16 characters long and contains only alphanumeric characters in lowercase
@@ -47,6 +50,7 @@ func Start() {
 		updateFlag    = flag.Bool("update", false, "Update the client to the latest version (if available)")
 		uninstallFlag = flag.Bool("uninstall", false, "Uninstall the client service (if installed)")
 		registerFlag  = flag.Bool("register", false, "Register the client with the API (register without installing as a service)")
+		//jobsFlag      = flag.Bool("jobs", false, "Fetch host jobs from the API")
 	)
 
 	var err error
@@ -143,12 +147,22 @@ func Start() {
 		return
 	}
 
+	if false { // Replace with *jobsFlag when you want to enable fetching host jobs
+		// Fetch host jobs from the API
+		hostname = "ubuntu-2404" // For testing purposes, we set a fixed hostname
+		processJobs(hostname)
+
+		return
+	}
+
 	processTasks(hostname, *oneShotFlag)
 }
 
 func InstallService(hostname string) {
 	// Install the client as a system service
 	log.Println("Installing client as a system service...")
+
+	fetchHostSecurityKey()
 
 	linux_installer.Config = config // Set the configuration for the installer
 
@@ -193,6 +207,83 @@ func parseErrorResponse(err error) string {
 	}
 	// If we couldn't parse the error, return the error string
 	return err.Error()
+}
+
+type HostJob struct {
+	JobId     string         `json:"job_id"`
+	Payload   HostJobPayload `json:"payload"`
+	Signature string         `json:"signature"`
+}
+
+type HostJobPayload struct {
+	Command string `json:"command"`
+}
+
+type HostJobResponse struct {
+	Code    int       `json:"code"`
+	Content []HostJob `json:"content"`
+	Message string    `json:"message"`
+}
+
+func fetchHostJobs(hostname string) (*[]HostJob, error) {
+	log.Println("Fetching host jobs from API...")
+	statusCode, responseBody, err := getRequest(config.ApiUrl + "jobs/hosts/" + hostname)
+	if err != nil {
+		log.Println(parseErrorResponse(err))
+		return nil, err
+	}
+	if statusCode == http.StatusNotFound {
+		return nil, nil // Return nil if no jobs are found
+	}
+
+	if statusCode != http.StatusOK {
+		handleAPIError("Error retrieving host jobs", statusCode)
+		return nil, errors.New("error retrieving host jobs")
+	}
+
+	var response HostJobResponse
+	if err := json.Unmarshal([]byte(responseBody), &response); err != nil {
+		log.Println("Error parsing response body:", err.Error())
+		return nil, err
+	}
+	return &response.Content, nil
+}
+
+type SecurityKeyApiResponse struct {
+	Code    int               `json:"code"`
+	Content map[string]string `json:"content"`
+	Message string            `json:"message"`
+}
+
+func fetchHostSecurityKey() {
+	// Fetch the security key from the API and update the configuration file
+	log.Println("Fetching security key from API...")
+	statusCode, responseBody, err := getRequest(config.ApiUrl + "hosts/securitykey")
+	if err != nil {
+		log.Println(parseErrorResponse(err))
+		return
+	}
+	if statusCode == http.StatusNotFound {
+		log.Println("Security key not found")
+		return
+	}
+
+	if statusCode != http.StatusOK {
+		handleAPIError("Error retrieving security key", statusCode)
+		return
+	}
+
+	var response SecurityKeyApiResponse
+	if err := json.Unmarshal([]byte(responseBody), &response); err != nil {
+		log.Println("Error parsing response body:", err.Error())
+		return
+	}
+	if securityKey, ok := response.Content["hostSecurityKey"]; ok {
+		// Save the security key to the configuration
+		config.HostSecurityKey = securityKey
+		println("Security Key:", securityKey)
+	}
+
 }
 
 func registerClient(hostname string) {
@@ -336,6 +427,32 @@ func postRequest(url string, data interface{}) (int, error) {
 	return resp.StatusCode, nil
 }
 
+func getRequest(url string) (int, string, error) {
+	// Send a GET request to the specified URL with the API key
+	// Returns the status code and response body as a string
+
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Println("Error creating request:", err.Error())
+		return 500, "", err
+	}
+	req.Header.Set("x-api-key", config.ApiKey)
+	println("API Key:", config.ApiKey)
+	println("Get request to URL:", url)
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Error sending request:", err.Error())
+		return 500, "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return resp.StatusCode, "", nil
+	}
+	body, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, string(body), nil
+}
+
 func processPing(hostname string) {
 	// Process ping for the given hostname
 	log.Println("Processing ping for", hostname)
@@ -366,6 +483,12 @@ func processBasicMonitoring(hostname string) {
 		return
 	}
 
+	diskFree, err := linux_df.GetDf()
+	if err != nil {
+		log.Println("Error getting disk usage:", err.Error())
+		return
+	}
+
 	cpuUsage := linux_top.GetCpuUsage()
 	cpuInfo := linux_top.GetCpuInfo()
 	loadAverage := linux_top.GetLoad()
@@ -380,6 +503,7 @@ func processBasicMonitoring(hostname string) {
 		"CpuInfo":       cpuInfo,
 		"Memory":        memory,
 		"Tasks":         tasks,
+		"DiskFree":      diskFree,
 	})
 	if err != nil || statusCode != http.StatusOK {
 		handleAPIError("Error submitting basic monitoring data", statusCode)
@@ -483,6 +607,50 @@ func processUpdates(hostname string, updateType pm.UpdateType, packageManager pm
 		return
 	}
 	log.Println("Updates submitted successfully for", hostname)
+}
+
+func processJobs(hostname string) {
+	jobs, err := fetchHostJobs(hostname)
+	if err != nil {
+		log.Fatal("Error fetching host jobs:", err.Error())
+		return
+	}
+	if jobs == nil {
+		log.Println("No jobs found for host:", hostname)
+		return
+	}
+	for _, job := range *jobs {
+		log.Println("Processing job:", job.JobId)
+		log.Println("Command:", job.Payload.Command)
+		log.Println("Signature:", job.Signature)
+
+		// Here you would typically execute the command in the payload
+		// For demonstration, we will just log it
+		log.Println("Executing command:", job.Payload.Command)
+
+		// After processing the job, you might want to send a response back to the API
+		// statusCode, err := postRequest(config.ApiUrl+"jobs/hosts/"+hostname+"/"+job.JobId+"/response", map[string]interface{}{
+		// 	"status": "success",
+		// 	"message": "Job processed successfully",
+		// })
+		// if err != nil || statusCode != http.StatusOK {
+		// 	handleAPIError("Error submitting job response", statusCode)
+		// 	return
+		// }
+		println("Public key:", config.HostSecurityKey)
+		validated, err := cloudguardian_crypto.ValidatePayload(config.HostSecurityKey, job.Payload.Command, job.Signature)
+		if err != nil {
+			log.Println("Failed to validate job payload:", job.JobId)
+			// Report back to the API that the job could not be processed
+			continue
+		}
+		if !validated {
+			log.Println("Invalid job payload signature for job ID:", job.JobId)
+			// Report back to the API that the job could not be processed
+			continue
+		}
+		log.Println("Job response submitted successfully for job ID:", job.JobId)
+	}
 }
 
 func printVersion() {

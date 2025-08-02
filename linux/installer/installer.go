@@ -17,7 +17,7 @@ const (
 	configFilePath     = "/etc/cloud-guardian.json"
 )
 
-var Config *cgconfig.CloudGardianConfig
+var Config *cgconfig.CloudGuardianConfig
 
 func HasRootPrivileges() bool {
 	// Check if the current user has root privileges
