@@ -19,6 +19,30 @@ const (
 	SecurityUpdates
 )
 
+func UpdatePackages(packages []string) (string, error) {
+	command := exec.Command("apt", "--only-upgrade", "--assume-yes", "--quiet", "install", strings.Join(packages, " "))
+	var out strings.Builder
+	command.Stdout = &out
+	command.Stderr = &out // Capture stderr as well
+	err := command.Run()
+	if err != nil {
+		return "", fmt.Errorf("command failed: %s", out.String())
+	}
+	return out.String(), nil
+}
+
+func InstallPackages(packages []string) (string, error) {
+	command := exec.Command("apt", "install", "--assume-yes", "--quiet", strings.Join(packages, " "))
+	var out strings.Builder
+	command.Stdout = &out
+	command.Stderr = &out // Capture stderr as well
+	err := command.Run()
+	if err != nil {
+		return "", fmt.Errorf("command failed: %s", out.String())
+	}
+	return out.String(), nil
+}
+
 func GetInstalledPackages() ([]AptPackage, error) {
 	command := exec.Command("apt", "list", "--installed")
 	var out strings.Builder

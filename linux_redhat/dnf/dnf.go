@@ -28,6 +28,32 @@ const (
 	SecurityUpdates
 )
 
+func UpdatePackages(packages []string) (string, error) {
+	command := exec.Command("dnf", "update", "--assumeyes", "--quiet")
+	command.Args = append(command.Args, packages...)
+	theCommand := `dnf ` + strings.Join(command.Args[1:], " ")
+	var out strings.Builder
+	command.Stdout = &out
+	command.Stderr = &out // Capture stderr as well
+	err := command.Run()
+	if err != nil {
+		return "", fmt.Errorf("command: %s failed: %s", theCommand, out.String())
+	}
+	return out.String(), nil
+}
+
+func InstallPackages(packages []string) (string, error) {
+	command := exec.Command("dnf", "install", "--assumeyes", "--quiet", strings.Join(packages, " "))
+	var out strings.Builder
+	command.Stdout = &out
+	command.Stderr = &out // Capture stderr as well
+	err := command.Run()
+	if err != nil {
+		return "", fmt.Errorf("command failed: %s", out.String())
+	}
+	return out.String(), nil
+}
+
 func GetInstalledPackages() ([]DnfPackage, error) {
 	command := exec.Command("dnf", "list", "installed", "--quiet")
 	var out strings.Builder

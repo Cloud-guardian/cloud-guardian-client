@@ -34,6 +34,8 @@ type Package struct {
 
 // PackageManager interface to abstract package manager operations
 type PackageManager interface {
+	UpdatePackages(packages []string) (string, error)
+	InstallPackages(packages []string) (string, error)
 	GetInstalledPackages() ([]Package, error)
 	CheckUpdates(updatetype UpdateType) ([]Package, []Package, error)
 }
@@ -54,6 +56,14 @@ func DetectPackageManager() (PackageManager, error) {
 
 // DNF Manager implementation
 type Dnf struct{}
+
+func (dnf *Dnf) UpdatePackages(packages []string) (string, error) {
+	return linux_redhat_dnf.UpdatePackages(packages)
+}
+
+func (dnf *Dnf) InstallPackages(packages []string) (string, error) {
+	return linux_redhat_dnf.InstallPackages(packages)
+}
 
 func (dnf *Dnf) GetInstalledPackages() ([]Package, error) {
 	packages, err := linux_redhat_dnf.GetInstalledPackages()
@@ -101,6 +111,14 @@ func (dnf *Dnf) CheckUpdates(updateType UpdateType) ([]Package, []Package, error
 
 // APT Manager implementation
 type Apt struct{}
+
+func (apt *Apt) UpdatePackages(packages []string) (string, error) {
+	return linux_debian_apt.UpdatePackages(packages)
+}
+
+func (apt *Apt) InstallPackages(packages []string) (string, error) {
+	return linux_debian_apt.InstallPackages(packages)
+}
 
 func (apt *Apt) GetInstalledPackages() ([]Package, error) {
 	packages, err := linux_debian_apt.GetInstalledPackages()
