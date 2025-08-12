@@ -17,7 +17,6 @@ type Df struct {
 }
 
 func GetDf() ([]Df, error) {
-	println("Executing df command to get disk usage information...")
 	fileSystemTypes := []string{"ext3", "ext4", "xfs", "vfat"}
 	var typeFlags []string
 	for _, fsType := range fileSystemTypes {
