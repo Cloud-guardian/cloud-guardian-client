@@ -6,9 +6,11 @@ import (
 	linux_container "cloud-guardian/linux/container"
 	linux_df "cloud-guardian/linux/df"
 	linux_installer "cloud-guardian/linux/installer"
+	linux_ip "cloud-guardian/linux/ip"
 	linux_loggedinusers "cloud-guardian/linux/loggedinusers"
 	linux_osrelease "cloud-guardian/linux/osrelease"
 	pm "cloud-guardian/linux/packagemanager"
+	linux_reboot "cloud-guardian/linux/reboot"
 	linux_top "cloud-guardian/linux/top"
 	"encoding/json"
 	"errors"
@@ -20,14 +22,19 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
 
-var Version = "fdev"    // Default version, can be overridden at build time with -ldflags "-X main.version=x.x.x"
-const apiKeyLength = 16 // Length of the API key, used for validation
+var Version = "fdev"          // Default version, can be overridden at build time with -ldflags "-X main.version=x.x.x"
+const apiKeyLength = 16       // Length of the API key, used for validation
+const maxRebootDuration = 300 // Maximum allowed reboot duration in seconds
 
 var config *cloudguardian_config.CloudGuardianConfig // Configuration for the Cloud Gardian client
+
+// getUptime is a function variable that can be mocked in tests
+var getUptime = linux_top.GetUptime
 
 func IsValidApiKey(apiKey string) bool {
 	// A valid API key is 16 characters long and contains only alphanumeric characters in lowercase
@@ -50,7 +57,6 @@ func Start() {
 		updateFlag    = flag.Bool("update", false, "Update the client to the latest version (if available)")
 		uninstallFlag = flag.Bool("uninstall", false, "Uninstall the client service (if installed)")
 		registerFlag  = flag.Bool("register", false, "Register the client with the API (register without installing as a service)")
-		//jobsFlag      = flag.Bool("jobs", false, "Fetch host jobs from the API")
 	)
 
 	var err error
@@ -147,13 +153,6 @@ func Start() {
 		return
 	}
 
-	if false { // Replace with *jobsFlag when you want to enable fetching host jobs
-		// Fetch host jobs from the API
-		hostname = "ubuntu-2404" // For testing purposes, we set a fixed hostname
-		processJobs(hostname)
-
-		return
-	}
 
 	processTasks(hostname, *oneShotFlag)
 }
@@ -210,9 +209,13 @@ func parseErrorResponse(err error) string {
 }
 
 type HostJob struct {
-	JobId     string         `json:"job_id"`
-	Payload   HostJobPayload `json:"payload"`
-	Signature string         `json:"signature"`
+	JobId     string `json:"jobId"`
+	Signature string `json:"signature"`
+	CreatedAt string `json:"createdAt"`
+	JobType   string `json:"jobType"`
+	JobData   string `json:"jobData"`
+	Result    string `json:"result"`
+	Status    string `json:"status"`
 }
 
 type HostJobPayload struct {
@@ -225,9 +228,9 @@ type HostJobResponse struct {
 	Message string    `json:"message"`
 }
 
-func fetchHostJobs(hostname string) (*[]HostJob, error) {
+func fetchHostJobs(hostname string, status string) (*[]HostJob, error) {
 	log.Println("Fetching host jobs from API...")
-	statusCode, responseBody, err := getRequest(config.ApiUrl + "jobs/hosts/" + hostname)
+	statusCode, responseBody, err := getRequest(config.ApiUrl + "jobs/hosts/" + hostname + "?job_status=" + status)
 	if err != nil {
 		log.Println(parseErrorResponse(err))
 		return nil, err
@@ -364,6 +367,8 @@ func processFiveMinuteTasks(hostname string) {
 	log.Println("Processing 5-minute tasks...")
 	processPing(hostname)
 	processBasicMonitoring(hostname)
+	// processRunningJobs(hostname)
+	// processNewJobs(hostname)
 }
 
 func processDailyTasks(hostname string) {
@@ -427,6 +432,34 @@ func postRequest(url string, data interface{}) (int, error) {
 	return resp.StatusCode, nil
 }
 
+func putRequest(url string, data interface{}) (int, error) {
+
+	client := &http.Client{}
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		log.Println("Error marshalling system info to JSON:", err.Error())
+		return 500, err
+	}
+	req, err := http.NewRequest("PUT", url, strings.NewReader(string(jsonData)))
+	if err != nil {
+		log.Println("Error creating request:", err.Error())
+		return 500, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", config.ApiKey)
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Error sending request:", err.Error())
+		return 500, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, fmt.Errorf("%s", body)
+	}
+	return resp.StatusCode, nil
+}
+
 func getRequest(url string) (int, string, error) {
 	// Send a GET request to the specified URL with the API key
 	// Returns the status code and response body as a string
@@ -438,8 +471,6 @@ func getRequest(url string) (int, string, error) {
 		return 500, "", err
 	}
 	req.Header.Set("x-api-key", config.ApiKey)
-	println("API Key:", config.ApiKey)
-	println("Get request to URL:", url)
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println("Error sending request:", err.Error())
@@ -489,6 +520,18 @@ func processBasicMonitoring(hostname string) {
 		return
 	}
 
+	networkInterfaces, err := linux_ip.GetIPInterfaces()
+	if err != nil {
+		log.Println("Error getting network interfaces:", err.Error())
+		return
+	}
+
+	routes, err := linux_ip.GetRoutes()
+	if err != nil {
+		log.Println("Error getting IP routes:", err.Error())
+		return
+	}
+
 	cpuUsage := linux_top.GetCpuUsage()
 	cpuInfo := linux_top.GetCpuInfo()
 	loadAverage := linux_top.GetLoad()
@@ -496,14 +539,16 @@ func processBasicMonitoring(hostname string) {
 	tasks := linux_top.GetTasks()
 
 	statusCode, err := postRequest(config.ApiUrl+"hosts/monitoring/"+hostname, map[string]any{
-		"Uptime":        uptime,
-		"LoadAverage":   loadAverage,
-		"LoggedInUsers": loggedInUsers,
-		"CpuUsage":      cpuUsage,
-		"CpuInfo":       cpuInfo,
-		"Memory":        memory,
-		"Tasks":         tasks,
-		"DiskFree":      diskFree,
+		"Uptime":            uptime,
+		"LoadAverage":       loadAverage,
+		"LoggedInUsers":     loggedInUsers,
+		"CpuUsage":          cpuUsage,
+		"CpuInfo":           cpuInfo,
+		"Memory":            memory,
+		"Tasks":             tasks,
+		"DiskFree":          diskFree,
+		"NetworkInterfaces": networkInterfaces,
+		"Routes":            routes,
 	})
 	if err != nil || statusCode != http.StatusOK {
 		handleAPIError("Error submitting basic monitoring data", statusCode)
@@ -609,47 +654,184 @@ func processUpdates(hostname string, updateType pm.UpdateType, packageManager pm
 	log.Println("Updates submitted successfully for", hostname)
 }
 
-func processJobs(hostname string) {
-	jobs, err := fetchHostJobs(hostname)
+func updateJobStatus(hostname, jobId, status string, result string) {
+	// Update the status of a job for the given hostname
+	log.Println("Updating job status for", hostname, "Job ID:", jobId, "Status:", status)
+
+	statusCode, err := putRequest(config.ApiUrl+"jobs/"+jobId, map[string]interface{}{
+		"status": status,
+		"result": result,
+	})
+	if err != nil || statusCode != http.StatusOK {
+		handleAPIError("Error updating job status", statusCode)
+		return
+	}
+	log.Println("Job status updated successfully for", hostname, "Job ID:", jobId, "Status:", status)
+}
+
+func processRunningJobs(hostname string) {
+	// Process running jobs for the given hostname
+	log.Println("Processing running jobs for", hostname)
+
+	runningJobs, err := fetchHostJobs(hostname, "running")
+	if err != nil {
+		log.Println("Error fetching running jobs:", err.Error())
+		return
+	}
+	if runningJobs == nil {
+		log.Println("No running jobs found for host:", hostname)
+		return
+	}
+
+	for _, job := range *runningJobs {
+		log.Println("Running job ID:", job.JobId, "Job Type:", job.JobType)
+		switch job.JobType {
+		case "reboot":
+			log.Println("Processing reboot job for job ID:", job.JobId)
+
+			// Check the status of the reboot job
+			rebootSuccessful, err := checkRebootStatus(job)
+			if err != nil {
+				if err.Error() == "status data is not in the expected format" {
+					log.Println("Reboot job: Status data is not in the expected format")
+					updateJobStatus(hostname, job.JobId, "failed", "We couldn't check the uptime of the host, just before the reboot")
+					return
+				}
+				if err.Error() == "system is still running after the reboot was initiated" {
+					log.Println("Reboot job: System is still running after the reboot was initiated")
+					updateJobStatus(hostname, job.JobId, "failed", "System is still running after the reboot was initiated")
+					return
+				}
+				if strings.HasPrefix(err.Error(), "error getting uptime: ") {
+					log.Println("Reboot job: Error getting uptime:", err.Error())
+					updateJobStatus(hostname, job.JobId, "failed", "We couldn't check the uptime of the host, after the reboot")
+					return
+				}
+
+			}
+			if rebootSuccessful {
+				log.Println("Reboot job was successful")
+				updateJobStatus(hostname, job.JobId, "completed", "Rebooted successfully")
+			}
+
+		}
+	}
+}
+
+func checkRebootStatus(job HostJob) (bool, error) {
+	// Check the status of a reboot job
+	// This function can be used to check if the reboot was successful or not
+	if !strings.HasPrefix(job.Result, "initiated reboot, uptime: ") {
+		log.Println("Job status:", job.Result)
+		log.Println("Error parsing uptime from job status: has not prefix")
+		return false, errors.New("status data is not in the expected format")
+	}
+
+	// Extract the uptime from the job data
+	// The job status should be:
+	// initiated reboot, uptime: "+fmt.Sprintf("%d", uptime)
+	uptimeBeforeReboot, err := strconv.ParseInt(strings.TrimPrefix(job.Result, "initiated reboot, uptime: "), 10, 64)
+	if err != nil {
+		log.Println("Job status:", job.Result)
+		log.Println("Error parsing uptime from job status:", err.Error())
+		return false, errors.New("status data is not in the expected format")
+	}
+
+	uptime, err := getUptime()
+	if err != nil {
+		return false, errors.New("error getting uptime: " + err.Error())
+	}
+	if uptime > uptimeBeforeReboot && (uptime-uptimeBeforeReboot) > maxRebootDuration {
+		return false, errors.New("system is still running after the reboot was initiated")
+	}
+	if uptime < uptimeBeforeReboot {
+		return true, nil // Reboot was successful
+	}
+	return false, nil
+}
+
+func processNewJobs(hostname string) {
+	submittedJobs, err := fetchHostJobs(hostname, "submitted")
 	if err != nil {
 		log.Fatal("Error fetching host jobs:", err.Error())
 		return
 	}
-	if jobs == nil {
+	if submittedJobs == nil {
 		log.Println("No jobs found for host:", hostname)
 		return
 	}
-	for _, job := range *jobs {
-		log.Println("Processing job:", job.JobId)
-		log.Println("Command:", job.Payload.Command)
-		log.Println("Signature:", job.Signature)
+	for _, job := range *submittedJobs {
 
-		// Here you would typically execute the command in the payload
-		// For demonstration, we will just log it
-		log.Println("Executing command:", job.Payload.Command)
-
-		// After processing the job, you might want to send a response back to the API
-		// statusCode, err := postRequest(config.ApiUrl+"jobs/hosts/"+hostname+"/"+job.JobId+"/response", map[string]interface{}{
-		// 	"status": "success",
-		// 	"message": "Job processed successfully",
-		// })
-		// if err != nil || statusCode != http.StatusOK {
-		// 	handleAPIError("Error submitting job response", statusCode)
-		// 	return
-		// }
-		println("Public key:", config.HostSecurityKey)
-		validated, err := cloudguardian_crypto.ValidatePayload(config.HostSecurityKey, job.Payload.Command, job.Signature)
+		// {"createdAt":"${job.createdAt}","hostname":"${job.hostname}","jobType":"${job.jobType}","jobData":"${job.jobData}"}
+		message := `{"createdAt":"` + job.CreatedAt + `","hostname":"` + hostname + `","jobType":"` + job.JobType + `","jobData":"` + job.JobData + `"}`
+		validated, err := cloudguardian_crypto.ValidatePayload(config.HostSecurityKey, message, job.Signature)
 		if err != nil {
 			log.Println("Failed to validate job payload:", job.JobId)
 			// Report back to the API that the job could not be processed
+			updateJobStatus(hostname, job.JobId, "failed", "failed to validate job payload")
 			continue
 		}
 		if !validated {
 			log.Println("Invalid job payload signature for job ID:", job.JobId)
 			// Report back to the API that the job could not be processed
+			updateJobStatus(hostname, job.JobId, "failed", "invalid job payload signature")
 			continue
 		}
-		log.Println("Job response submitted successfully for job ID:", job.JobId)
+
+		switch job.JobType {
+		case "update":
+			// Process update job
+			log.Println("Processing update job for job ID:", job.JobId)
+			updateJobStatus(hostname, job.JobId, "running", "")
+			packageList := strings.Split(job.JobData, ",")
+			packageManager, err := pm.DetectPackageManager()
+			if err != nil {
+				log.Println("Error detecting package manager:", err.Error())
+				return
+			}
+			result, err := packageManager.UpdatePackages(packageList)
+			if err != nil {
+				log.Println("Error updating packages:", err.Error())
+				updateJobStatus(hostname, job.JobId, "failed", "failed to update packages")
+				return
+			}
+			updateJobStatus(hostname, job.JobId, "completed", result)
+		case "reboot":
+			// Process reboot job
+			log.Println("Processing reboot job for job ID:", job.JobId)
+			// For reboot we first update the job status to "running" and then reboot
+			// the system. Later we check the running jobs to see if the job was successful
+			uptime, err := linux_top.GetUptime()
+			if uptime < maxRebootDuration {
+				log.Println("Reboot job: Uptime is less than", maxRebootDuration, " seconds. We have to wait until it is safe to reboot. Otherwise it could cause reboot loops.")
+				return
+			}
+			if err != nil {
+				log.Println("Reboot job: Error getting uptime:", err.Error())
+				updateJobStatus(hostname, job.JobId, "failed", "Reboot failed, because we couldn't check the uptime of the host")
+				return
+			}
+			updateJobStatus(hostname, job.JobId, "running", "initiated reboot, uptime: "+fmt.Sprintf("%d", uptime))
+			if err := linux_reboot.Reboot(); err != nil {
+				log.Println("Reboot job: Error initiating reboot:", err.Error())
+				updateJobStatus(hostname, job.JobId, "failed", "Reboot failed, because we couldn't initiate the reboot")
+				return
+			}
+		case "command":
+			// Process command job
+			log.Println("Processing command job for job ID:", job.JobId)
+		case "script":
+			// Process script job
+			log.Println("Processing script job for job ID:", job.JobId)
+		case "update_agent":
+			// Process update_agent job
+			log.Println("Processing update_agent job for job ID:", job.JobId)
+		default:
+			log.Println("Unknown job type for job ID:", job.JobId, "Job Type:", job.JobType)
+			// Report back to the API that the job could not be processed
+			updateJobStatus(hostname, job.JobId, "failed", "unknown job type")
+			continue
+		}
 	}
 }
 
