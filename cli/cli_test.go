@@ -17,7 +17,7 @@ func TestCheckRebootStatus(t *testing.T) {
 		{
 			name: "successful reboot - uptime decreased",
 			job: HostJob{
-				Status: "initiated reboot, uptime: 1000",
+				Result: "initiated reboot, uptime: 1000",
 			},
 			mockUptime:     500,
 			expectedResult: true,
@@ -26,7 +26,7 @@ func TestCheckRebootStatus(t *testing.T) {
 		{
 			name: "failed reboot - uptime still high after max duration",
 			job: HostJob{
-				Status: "initiated reboot, uptime: 1000",
+				Result: "initiated reboot, uptime: 1000",
 			},
 			mockUptime:     1400, // 1000 + 400 > maxRebootDuration (300)
 			expectedResult: false,
@@ -35,7 +35,7 @@ func TestCheckRebootStatus(t *testing.T) {
 		{
 			name: "reboot in progress - within max duration",
 			job: HostJob{
-				Status: "initiated reboot, uptime: 1000",
+				Result: "initiated reboot, uptime: 1000",
 			},
 			mockUptime:     1200, // 1000 + 200 < maxRebootDuration (300)
 			expectedResult: false,
@@ -44,7 +44,7 @@ func TestCheckRebootStatus(t *testing.T) {
 		{
 			name: "invalid status format - missing prefix",
 			job: HostJob{
-				Status: "some other status",
+				Result: "some other status",
 			},
 			expectedResult: false,
 			expectedError:  "status data is not in the expected format",
@@ -52,7 +52,7 @@ func TestCheckRebootStatus(t *testing.T) {
 		{
 			name: "invalid status format - wrong number of parts",
 			job: HostJob{
-				Status: "initiated reboot, uptime: 1000, extra",
+				Result: "initiated reboot, uptime: 1000, extra",
 			},
 			expectedResult: false,
 			expectedError:  "status data is not in the expected format",
@@ -60,7 +60,7 @@ func TestCheckRebootStatus(t *testing.T) {
 		{
 			name: "invalid status format - non-numeric uptime",
 			job: HostJob{
-				Status: "initiated reboot, uptime: abc",
+				Result: "initiated reboot, uptime: abc",
 			},
 			expectedResult: false,
 			expectedError:  "status data is not in the expected format",
@@ -68,7 +68,7 @@ func TestCheckRebootStatus(t *testing.T) {
 		{
 			name: "error getting current uptime",
 			job: HostJob{
-				Status: "initiated reboot, uptime: 1000",
+				Result: "initiated reboot, uptime: 1000",
 			},
 			mockUptimeErr:  errors.New("failed to get uptime"),
 			expectedResult: false,
