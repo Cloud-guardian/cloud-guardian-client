@@ -28,30 +28,33 @@ const (
 	SecurityUpdates
 )
 
-func UpdatePackages(packages []string) (string, error) {
-	command := exec.Command("dnf", "update", "--assumeyes", "--quiet")
-	command.Args = append(command.Args, packages...)
-	theCommand := `dnf ` + strings.Join(command.Args[1:], " ")
-	var out strings.Builder
-	command.Stdout = &out
-	command.Stderr = &out // Capture stderr as well
+func runCommand(command *exec.Cmd) (string, string, error) {
+	var stdout strings.Builder
+	var stderr strings.Builder
+	command.Stdout = &stdout
+	command.Stderr = &stderr // Capture stderr as well
 	err := command.Run()
 	if err != nil {
-		return "", fmt.Errorf("command: %s failed: %s", theCommand, out.String())
+		return stdout.String(), stderr.String(), fmt.Errorf("command failed: %s", stderr.String())
 	}
-	return out.String(), nil
+	return stdout.String(), stderr.String(), nil
 }
 
-func InstallPackages(packages []string) (string, error) {
-	command := exec.Command("dnf", "install", "--assumeyes", "--quiet", strings.Join(packages, " "))
-	var out strings.Builder
-	command.Stdout = &out
-	command.Stderr = &out // Capture stderr as well
-	err := command.Run()
-	if err != nil {
-		return "", fmt.Errorf("command failed: %s", out.String())
-	}
-	return out.String(), nil
+func UpdateAllPackages() (string, string, error) {
+	command := exec.Command("dnf", "update", "--assumeyes", "--quiet")
+	return runCommand(command)
+}
+
+func UpdatePackages(packages []string) (string, string, error) {
+	command := exec.Command("dnf", "update", "--assumeyes", "--quiet")
+	command.Args = append(command.Args, packages...)
+	return runCommand(command)
+}
+
+func InstallPackages(packages []string) (string, string, error) {
+	command := exec.Command("dnf", "install", "--assumeyes", "--quiet")
+	command.Args = append(command.Args, packages...)
+	return runCommand(command)
 }
 
 func GetInstalledPackages() ([]DnfPackage, error) {

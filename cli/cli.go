@@ -153,7 +153,6 @@ func Start() {
 		return
 	}
 
-
 	processTasks(hostname, *oneShotFlag)
 }
 
@@ -367,8 +366,8 @@ func processFiveMinuteTasks(hostname string) {
 	log.Println("Processing 5-minute tasks...")
 	processPing(hostname)
 	processBasicMonitoring(hostname)
-	// processRunningJobs(hostname)
-	// processNewJobs(hostname)
+	processRunningJobs(hostname)
+	processNewJobs(hostname)
 }
 
 func processDailyTasks(hostname string) {
@@ -789,13 +788,18 @@ func processNewJobs(hostname string) {
 				log.Println("Error detecting package manager:", err.Error())
 				return
 			}
-			result, err := packageManager.UpdatePackages(packageList)
+			var stdOut, stdErr string
+			if packageList[0] == "all" {
+				stdOut, stdErr, err = packageManager.UpdateAllPackages()
+			} else {
+				stdOut, stdErr, err = packageManager.UpdatePackages(packageList)
+			}
 			if err != nil {
 				log.Println("Error updating packages:", err.Error())
-				updateJobStatus(hostname, job.JobId, "failed", "failed to update packages")
+				updateJobStatus(hostname, job.JobId, "failed", fmt.Sprintf("failed to update packages %s", stdErr))
 				return
 			}
-			updateJobStatus(hostname, job.JobId, "completed", result)
+			updateJobStatus(hostname, job.JobId, "completed", stdOut)
 		case "reboot":
 			// Process reboot job
 			log.Println("Processing reboot job for job ID:", job.JobId)

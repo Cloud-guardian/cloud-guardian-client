@@ -19,28 +19,32 @@ const (
 	SecurityUpdates
 )
 
-func UpdatePackages(packages []string) (string, error) {
-	command := exec.Command("apt", "--only-upgrade", "--assume-yes", "--quiet", "install", strings.Join(packages, " "))
-	var out strings.Builder
-	command.Stdout = &out
-	command.Stderr = &out // Capture stderr as well
+func runCommand(command *exec.Cmd) (string, string, error) {
+	var stdout strings.Builder
+	var stderr strings.Builder
+	command.Stdout = &stdout
+	command.Stderr = &stderr // Capture stderr as well
 	err := command.Run()
 	if err != nil {
-		return "", fmt.Errorf("command failed: %s", out.String())
+		return stdout.String(), stderr.String(), fmt.Errorf("command failed: %s", stderr.String())
 	}
-	return out.String(), nil
+	return stdout.String(), stderr.String(), nil
 }
 
-func InstallPackages(packages []string) (string, error) {
+func UpdateAllPackages() (string, string, error) {
+	command := exec.Command("apt", "upgrade", "--assume-yes", "--quiet")
+	return runCommand(command)
+}
+
+func UpdatePackages(packages []string) (string, string, error) {
+	command := exec.Command("apt", "--only-upgrade", "--assume-yes", "--quiet", "install")
+	command.Args = append(command.Args, packages...)
+	return runCommand(command)
+}
+
+func InstallPackages(packages []string) (string, string, error) {
 	command := exec.Command("apt", "install", "--assume-yes", "--quiet", strings.Join(packages, " "))
-	var out strings.Builder
-	command.Stdout = &out
-	command.Stderr = &out // Capture stderr as well
-	err := command.Run()
-	if err != nil {
-		return "", fmt.Errorf("command failed: %s", out.String())
-	}
-	return out.String(), nil
+	return runCommand(command)
 }
 
 func GetInstalledPackages() ([]AptPackage, error) {
