@@ -1,26 +1,26 @@
 package linux_ip
 
 import (
+	"bufio"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"net"
-	"encoding/hex"
-	"bufio"
 	"os"
 	"strconv"
 	"strings"
 )
 
 type routeEntry struct {
-	Destination net.IP
-	DestStr	    string // CIDR notation or "default"
+	Destination  net.IP
+	DestStr      string // CIDR notation or "default"
 	PrefixLength int
-	Gateway     net.IP
-	Iface       string
-	Metric      int
-	Proto       string
-	Scope       string
-	Src         net.IP
+	Gateway      net.IP
+	Iface        string
+	Metric       int
+	Proto        string
+	Scope        string
+	Src          net.IP
 }
 
 type Addr struct {
@@ -72,11 +72,11 @@ func GetRoutes() ([]routeEntry, error) {
 		entry := routeEntry{
 			Destination: dest,
 			// PrefixLength: mask.Mask.Size(),
-			Gateway:     gw,
-			Iface:       iface,
-			Metric:      metric,
-			Proto:       "kernel", // default assumption
-			Scope:       "link",   // default assumption
+			Gateway: gw,
+			Iface:   iface,
+			Metric:  metric,
+			Proto:   "kernel", // default assumption
+			Scope:   "link",   // default assumption
 		}
 
 		// Determine if default route
@@ -104,7 +104,6 @@ func GetRoutes() ([]routeEntry, error) {
 			dstStr = (&net.IPNet{IP: entry.Destination, Mask: net.CIDRMask(entry.PrefixLength, 32)}).String()
 		}
 		entry.DestStr = dstStr
-
 
 		routes = append(routes, entry)
 	}
@@ -228,4 +227,3 @@ func parseHexIP(s string) net.IP {
 	}
 	return net.IPv4(b[3], b[2], b[1], b[0])
 }
-

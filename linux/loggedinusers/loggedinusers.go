@@ -14,6 +14,11 @@ type LoggedInUser struct {
 }
 
 // GetLoggedInUsers retrieves the list of currently logged-in users on a Linux system.
+// It executes the 'who' command and parses the output to extract user information.
+//
+// Returns:
+//   - []LoggedInUser: A slice of LoggedInUser structs containing user session information
+//   - error: Any error that occurred during the retrieval process
 func GetLoggedInUsers() ([]LoggedInUser, error) {
 	command := exec.Command("who")
 	var out strings.Builder
@@ -26,6 +31,14 @@ func GetLoggedInUsers() ([]LoggedInUser, error) {
 	return parseLoggedInUsers(out.String()), nil
 }
 
+// parseLoggedInUsers parses the output from the 'who' command.
+// It extracts user session information from each line and returns a slice of LoggedInUser structs.
+//
+// Parameters:
+//   - output: The raw output string from the who command
+//
+// Returns:
+//   - []LoggedInUser: A slice of parsed LoggedInUser structs
 func parseLoggedInUsers(output string) []LoggedInUser {
 	lines := strings.Split(output, "\n")
 	users := []LoggedInUser{}

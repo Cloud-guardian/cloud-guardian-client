@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+// GetUptime retrieves the system uptime in seconds by reading from /proc/uptime.
+//
+// Returns:
+//   - int64: System uptime in seconds
+//   - error: Any error that occurred while reading or parsing the uptime
 func GetUptime() (int64, error) {
 	// Read the /proc/uptime file to get system uptime
 	data, err := os.ReadFile("/proc/uptime")
@@ -43,6 +48,10 @@ type MemoryUsage struct {
 	SwapUsed     float64
 }
 
+// GetMemory retrieves memory usage information from /proc/meminfo.
+//
+// Returns:
+//   - MemoryUsage: A struct containing detailed memory usage statistics
 func GetMemory() MemoryUsage {
 	mem := map[string]float64{}
 	file, _ := os.Open("/proc/meminfo")
@@ -80,6 +89,10 @@ type LoadAverage struct {
 	FifteenMinutes float64
 }
 
+// GetLoad retrieves the system load averages from /proc/loadavg.
+//
+// Returns:
+//   - LoadAverage: A struct containing 1, 5, and 15 minute load averages
 func GetLoad() LoadAverage {
 	// Load averages
 	loadBytes, _ := os.ReadFile("/proc/loadavg")
@@ -92,6 +105,13 @@ func GetLoad() LoadAverage {
 	}
 }
 
+// parseLoad parses a load average string value into a float64.
+//
+// Parameters:
+//   - load: The load average string to parse
+//
+// Returns:
+//   - float64: The parsed load average value, or 0.0 if parsing fails
 func parseLoad(load string) float64 {
 	value, err := strconv.ParseFloat(load, 64)
 	if err != nil {
@@ -112,6 +132,11 @@ type CpuUsage struct {
 	Steal             float64
 }
 
+// GetCpuUsage calculates CPU usage percentages by taking two snapshots of /proc/stat.
+// It computes the percentage of time spent in different CPU states.
+//
+// Returns:
+//   - CpuUsage: A struct containing CPU usage percentages for different states
 func GetCpuUsage() CpuUsage {
 	stat1 := readCpuStat()
 	time.Sleep(100 * time.Millisecond)
@@ -138,6 +163,10 @@ func GetCpuUsage() CpuUsage {
 	}
 }
 
+// readCpuStat reads CPU statistics from /proc/stat and returns the numeric values.
+//
+// Returns:
+//   - []int64: Array of CPU time values from /proc/stat, or nil if reading fails
 func readCpuStat() []int64 {
 	file, _ := os.Open("/proc/stat")
 	defer file.Close()
@@ -163,6 +192,10 @@ type CpuInfo struct {
 	Mhz       float64
 }
 
+// GetCpuInfo retrieves CPU information from /proc/cpuinfo.
+//
+// Returns:
+//   - CpuInfo: A struct containing CPU model name, core count, thread count, and frequency
 func GetCpuInfo() CpuInfo {
 	file, err := os.Open("/proc/cpuinfo")
 	if err != nil {
@@ -205,6 +238,11 @@ type TaskStats struct {
 	Idle            int
 }
 
+// GetTasks retrieves task/process statistics by scanning /proc directory.
+// It counts processes in different states by reading their status files.
+//
+// Returns:
+//   - TaskStats: A struct containing counts of processes in different states
 func GetTasks() TaskStats {
 	total, running, sleeping, uninterruptible, idle, stopped, zombie := 0, 0, 0, 0, 0, 0, 0
 	proc, _ := os.ReadDir("/proc")
@@ -249,16 +287,38 @@ func GetTasks() TaskStats {
 	}
 }
 
+// round rounds a float64 value to the specified number of decimal places.
+//
+// Parameters:
+//   - value: The float64 value to round
+//   - precision: The number of decimal places to round to
+//
+// Returns:
+//   - float64: The rounded value
 func round(value float64, precision int) float64 {
 	pow := math.Pow(10, float64(precision))
 	return math.Round(value*pow) / pow
 }
 
+// isNumeric checks if a string represents a numeric value.
+//
+// Parameters:
+//   - s: The string to check
+//
+// Returns:
+//   - bool: true if the string is numeric, false otherwise
 func isNumeric(s string) bool {
 	_, err := strconv.Atoi(s)
 	return err == nil
 }
 
+// sum calculates the sum of all values in an int64 slice.
+//
+// Parameters:
+//   - arr: The slice of int64 values to sum
+//
+// Returns:
+//   - int64: The sum of all values in the slice
 func sum(arr []int64) int64 {
 	var total int64
 	for _, v := range arr {
@@ -267,6 +327,14 @@ func sum(arr []int64) int64 {
 	return total
 }
 
+// extractIntFromKV extracts an integer value from a key-value line.
+// It parses lines in the format "key: value" and returns the integer value.
+//
+// Parameters:
+//   - line: The key-value line to parse
+//
+// Returns:
+//   - int: The extracted integer value, or 0 if parsing fails
 func extractIntFromKV(line string) int {
 	result, err := strconv.Atoi(extractStringFromKV(line))
 	if err != nil {
@@ -275,10 +343,26 @@ func extractIntFromKV(line string) int {
 	return result
 }
 
+// extractStringFromKV extracts a string value from a key-value line.
+// It parses lines in the format "key: value" and returns the trimmed string value.
+//
+// Parameters:
+//   - line: The key-value line to parse
+//
+// Returns:
+//   - string: The extracted and trimmed string value
 func extractStringFromKV(line string) string {
 	return strings.TrimSpace(strings.Split(line, ":")[1])
 }
 
+// extractFloatFromKV extracts a float64 value from a key-value line.
+// It parses lines in the format "key: value" and returns the float64 value.
+//
+// Parameters:
+//   - line: The key-value line to parse
+//
+// Returns:
+//   - float64: The extracted float64 value, or 0.0 if parsing fails
 func extractFloatFromKV(line string) float64 {
 	result, err := strconv.ParseFloat(extractStringFromKV(line), 64)
 	if err != nil {

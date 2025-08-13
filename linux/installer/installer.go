@@ -19,11 +19,26 @@ const (
 
 var Config *cgconfig.CloudGuardianConfig
 
+// HasRootPrivileges checks if the current process is running with root privileges.
+// It returns true if the effective user ID is 0 (root), false otherwise.
+//
+// Returns:
+//   - bool: true if running as root, false otherwise
 func HasRootPrivileges() bool {
 	// Check if the current user has root privileges
 	return os.Geteuid() == 0
 }
 
+// copyFile copies a file from source to destination with the specified file mode.
+// It handles the opening, copying, and setting permissions of the destination file.
+//
+// Parameters:
+//   - src: The source file path
+//   - dst: The destination file path
+//   - filemode: The file mode to set on the destination file
+//
+// Returns:
+//   - error: Any error that occurred during the copy operation
 func copyFile(src, dst string, filemode os.FileMode) error {
 	srcFile, err := os.Open(src)
 	if err != nil {

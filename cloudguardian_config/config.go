@@ -41,7 +41,15 @@ func (config *CloudGuardianConfig) Validate() error {
 	return nil
 }
 
-// Load config from a file.
+// LoadConfig loads configuration from a JSON file.
+// It reads the file, unmarshals the JSON, and validates the configuration.
+//
+// Parameters:
+//   - filename: The path to the configuration file
+//
+// Returns:
+//   - *CloudGuardianConfig: The loaded configuration
+//   - error: Any error that occurred during loading or validation
 func LoadConfig(filename string) (*CloudGuardianConfig, error) {
 	config := DefaultConfig()
 	// Load config from json file:
@@ -63,7 +71,14 @@ func LoadConfig(filename string) (*CloudGuardianConfig, error) {
 	return config, nil
 }
 
-// Save config to a file.
+// Save saves the configuration to a JSON file.
+// It validates the configuration before saving and only includes non-default values.
+//
+// Parameters:
+//   - filename: The path where to save the configuration file
+//
+// Returns:
+//   - error: Any error that occurred during validation or saving
 func (config *CloudGuardianConfig) Save(filename string) error {
 
 	if err := config.Validate(); err != nil {
@@ -108,15 +123,22 @@ type InvalidConfigError struct {
 	Err      error
 }
 
+// Error returns a formatted error message for the InvalidConfigError.
 func (e *InvalidConfigError) Error() string {
 	return fmt.Sprintf("Invalid configuration in location %s: %s: %v", e.Location, e.Msg, e.Err)
 }
 
+// Unwrap returns the underlying error for error unwrapping.
 func (e *InvalidConfigError) Unwrap() error {
 	return e.Err
 }
 
-// Try to find the config file:
+// FindAndLoadConfig attempts to find and load a configuration file from multiple locations.
+// It searches in the current directory, user config directory, and system-wide config location.
+//
+// Returns:
+//   - *CloudGuardianConfig: The loaded configuration if found
+//   - error: ErrConfigNotFound if no config file is found, or other errors during loading
 func FindAndLoadConfig() (*CloudGuardianConfig, error) {
 	// check the following locations:
 	// 1. Current directory

@@ -35,8 +35,12 @@ type OSRelease struct {
 	// Logo string
 }
 
-// getLines read the OSReleasePath and return it line by line.
+// getLines reads the os-release file and returns it line by line.
 // Empty lines and comments (beginning with a "#") are ignored.
+//
+// Returns:
+//   - []string: A slice of non-empty, non-comment lines from the os-release file
+//   - error: Any error that occurred while reading the file
 func getLines() ([]string, error) {
 
 	output, err := os.ReadFile(Path)
@@ -61,8 +65,16 @@ func getLines() ([]string, error) {
 	return lines, nil
 }
 
-// parseLine parse a single line.
-// Return key, value, error (if any)
+// parseLine parses a single line from the os-release file.
+// It splits the line on the first '=' character to extract key-value pairs.
+//
+// Parameters:
+//   - line: A single line from the os-release file
+//
+// Returns:
+//   - string: The key portion of the key-value pair
+//   - string: The value portion with quotes removed
+//   - error: Any error that occurred during parsing
 func parseLine(line string) (string, string, error) {
 
 	subs := strings.SplitN(line, "=", 2)
@@ -74,6 +86,11 @@ func parseLine(line string) (string, string, error) {
 	return subs[0], strings.Trim(subs[1], "\"'"), nil
 }
 
+// GetOsReleaseInfo reads and parses the os-release file to populate the global Release variable.
+// It combines reading the file and parsing the content into a single operation.
+//
+// Returns:
+//   - error: Any error that occurred during reading or parsing
 func GetOsReleaseInfo() error {
 
 	lines, err := getLines()
@@ -87,8 +104,14 @@ func GetOsReleaseInfo() error {
 	return nil
 }
 
-// Parse parses the os-release file pointing to by Path.
-// The fields are saved into the Release global variable.
+// Parse parses the lines from an os-release file and populates the global Release variable.
+// It processes each line to extract key-value pairs and maps them to the OSRelease struct fields.
+//
+// Parameters:
+//   - lines: A slice of strings containing the lines from the os-release file
+//
+// Returns:
+//   - error: Any error that occurred during parsing
 func Parse(lines []string) error {
 
 	for i := range lines {

@@ -28,6 +28,16 @@ const (
 	SecurityUpdates
 )
 
+// runCommand executes a given command and captures both stdout and stderr.
+// It returns the standard output, standard error, and any error that occurred during execution.
+//
+// Parameters:
+//   - command: The exec.Cmd to execute
+//
+// Returns:
+//   - string: Standard output from the command
+//   - string: Standard error output from the command
+//   - error: Any error that occurred during execution
 func runCommand(command *exec.Cmd) (string, string, error) {
 	var stdout strings.Builder
 	var stderr strings.Builder
@@ -40,23 +50,63 @@ func runCommand(command *exec.Cmd) (string, string, error) {
 	return stdout.String(), stderr.String(), nil
 }
 
+// UpdateAllPackages updates all packages on the system using DNF.
+// It runs the equivalent of 'dnf update --assumeyes --quiet' command.
+//
+// Returns:
+//   - string: Standard output from the DNF update command
+//   - string: Standard error output from the DNF update command
+//   - error: Any error that occurred during the update process
 func UpdateAllPackages() (string, string, error) {
 	command := exec.Command("dnf", "update", "--assumeyes", "--quiet")
 	return runCommand(command)
 }
 
+// UpdatePackages updates the specified packages using the DNF package manager.
+// It takes a slice of package names and attempts to update them to their latest versions.
+//
+// Parameters:
+//   - packages: A slice of strings containing the names of packages to update
+//
+// Returns:
+//   - string: Standard output from the DNF update command
+//   - string: Standard error output from the DNF update command
+//   - error: Any error that occurred during the update process
+//
+// Example:
+//
+//	stdout, stderr, err := dnf.UpdatePackages([]string{"nginx", "curl"})
+//	if err != nil {
+//	    log.Printf("Update failed: %v, stderr: %s", err, stderr)
+//	}
 func UpdatePackages(packages []string) (string, string, error) {
 	command := exec.Command("dnf", "update", "--assumeyes", "--quiet")
 	command.Args = append(command.Args, packages...)
 	return runCommand(command)
 }
 
+// InstallPackages installs the specified packages using the DNF package manager.
+// It takes a slice of package names and attempts to install them.
+//
+// Parameters:
+//   - packages: A slice of strings containing the names of packages to install
+//
+// Returns:
+//   - string: Standard output from the DNF install command
+//   - string: Standard error output from the DNF install command
+//   - error: Any error that occurred during the installation process
 func InstallPackages(packages []string) (string, string, error) {
 	command := exec.Command("dnf", "install", "--assumeyes", "--quiet")
 	command.Args = append(command.Args, packages...)
 	return runCommand(command)
 }
 
+// GetInstalledPackages retrieves a list of all installed packages on the system.
+// It executes 'dnf list installed --quiet' and parses the output.
+//
+// Returns:
+//   - []DnfPackage: A slice of DnfPackage structs containing package information
+//   - error: Any error that occurred during the retrieval process
 func GetInstalledPackages() ([]DnfPackage, error) {
 	command := exec.Command("dnf", "list", "installed", "--quiet")
 	var out strings.Builder
@@ -69,6 +119,14 @@ func GetInstalledPackages() ([]DnfPackage, error) {
 	return parseInstalledPackages(out.String()), nil
 }
 
+// parseInstalledPackages parses the output from 'dnf list installed' command.
+// It extracts package information from each line and returns a slice of DnfPackage structs.
+//
+// Parameters:
+//   - output: The raw output string from the DNF list installed command
+//
+// Returns:
+//   - []DnfPackage: A slice of parsed DnfPackage structs
 func parseInstalledPackages(output string) []DnfPackage {
 	lines := strings.Split(output, "\n")
 	packages := []DnfPackage{}
@@ -90,6 +148,14 @@ func parseInstalledPackages(output string) []DnfPackage {
 	return packages
 }
 
+// parseUpdateSummary parses the output from 'dnf updateinfo --summary' command.
+// It extracts update information including security, bugfix, and enhancement counts.
+//
+// Parameters:
+//   - output: The raw output string from the DNF updateinfo summary command
+//
+// Returns:
+//   - DnfUpdateSummary: A struct containing categorized update counts
 func parseUpdateSummary(output string) DnfUpdateSummary {
 
 	// Parse the output of `dnf updateinfo --summary` to extract the summary information
@@ -117,6 +183,16 @@ func parseUpdateSummary(output string) DnfUpdateSummary {
 	return summary
 }
 
+// CheckUpdates checks for available package updates using DNF.
+// It can check for all updates or security-only updates based on the updateType parameter.
+//
+// Parameters:
+//   - updateType: UpdateType enum specifying whether to check all updates or security updates only
+//
+// Returns:
+//   - []DnfPackage: A slice of packages that have updates available
+//   - []DnfPackage: A slice of obsolete packages
+//   - error: Any error that occurred during the check process
 func CheckUpdates(updateType UpdateType) ([]DnfPackage, []DnfPackage, error) {
 	command := exec.Command("dnf", "check-update", "--quiet")
 	if updateType == SecurityUpdates {
@@ -138,6 +214,12 @@ func CheckUpdates(updateType UpdateType) ([]DnfPackage, []DnfPackage, error) {
 	return updates, obsolete, nil
 }
 
+// CheckUpdateSummary retrieves a summary of available updates categorized by type.
+// It executes 'dnf updateinfo --summary --quiet' and parses the results.
+//
+// Returns:
+//   - DnfUpdateSummary: A struct containing counts of different update types
+//   - error: Any error that occurred during the summary retrieval process
 func CheckUpdateSummary() (DnfUpdateSummary, error) {
 	command := exec.Command("dnf", "updateinfo", "--summary", "--quiet")
 	var out strings.Builder
@@ -151,6 +233,12 @@ func CheckUpdateSummary() (DnfUpdateSummary, error) {
 	return summary, nil
 }
 
+// CheckUpdateInfoList retrieves a detailed list of available updates with advisory information.
+// It executes 'dnf updateinfo list --quiet' and parses the output.
+//
+// Returns:
+//   - []DnfPackage: A slice of DnfPackage structs containing update information
+//   - error: Any error that occurred during the retrieval process
 func CheckUpdateInfoList() ([]DnfPackage, error) {
 	command := exec.Command("dnf", "updateinfo", "list", "--quiet")
 	var out strings.Builder
@@ -180,6 +268,15 @@ func CheckUpdateInfoList() ([]DnfPackage, error) {
 	return packages, nil
 }
 
+// parseUpdates parses the output from 'dnf check-update' command.
+// It separates regular updates from obsolete packages and returns both lists.
+//
+// Parameters:
+//   - output: The raw output string from the DNF check-update command
+//
+// Returns:
+//   - []DnfPackage: A slice of packages with available updates
+//   - []DnfPackage: A slice of obsolete packages
 func parseUpdates(output string) ([]DnfPackage, []DnfPackage) {
 	// Parse the output of `dnf check-update` to extract package names
 	// Return the package names and obsolete packages

@@ -16,6 +16,12 @@ type Df struct {
 	Target string  // Mount point
 }
 
+// GetDf retrieves disk usage information for local filesystems.
+// It executes the 'df' command with specific filesystem type filters and parses the output.
+//
+// Returns:
+//   - []Df: A slice of Df structs containing disk usage information
+//   - error: Any error that occurred during the retrieval process
 func GetDf() ([]Df, error) {
 	fileSystemTypes := []string{"ext3", "ext4", "xfs", "vfat"}
 	var typeFlags []string
@@ -36,6 +42,14 @@ func GetDf() ([]Df, error) {
 	return parseDfOutput(out.String()), nil
 }
 
+// parseDfOutput parses the output from the 'df' command.
+// It extracts disk usage information from each line and returns a slice of Df structs.
+//
+// Parameters:
+//   - output: The raw output string from the df command
+//
+// Returns:
+//   - []Df: A slice of parsed Df structs containing disk usage information
 func parseDfOutput(output string) []Df {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	if len(lines) < 2 {
