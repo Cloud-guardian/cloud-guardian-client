@@ -2,6 +2,7 @@ package linux_installer
 
 import (
 	cgconfig "cloud-guardian/cloudguardian_config"
+	linux "cloud-guardian/linux"
 	"io"
 	"log"
 	"os"
@@ -18,16 +19,6 @@ const (
 )
 
 var Config *cgconfig.CloudGuardianConfig
-
-// HasRootPrivileges checks if the current process is running with root privileges.
-// It returns true if the effective user ID is 0 (root), false otherwise.
-//
-// Returns:
-//   - bool: true if running as root, false otherwise
-func HasRootPrivileges() bool {
-	// Check if the current user has root privileges
-	return os.Geteuid() == 0
-}
 
 // copyFile copies a file from source to destination with the specified file mode.
 // It handles the opening, copying, and setting permissions of the destination file.
@@ -83,7 +74,7 @@ WantedBy=multi-user.target
 }
 
 func EnableAndStartService() error {
-	if !HasRootPrivileges() {
+	if !linux.HasRootPrivileges() {
 		return os.ErrPermission // User does not have root privileges
 	}
 
@@ -138,7 +129,7 @@ func IsServiceEnabled() bool {
 }
 
 func DisableAndStopService() error {
-	if !HasRootPrivileges() {
+	if !linux.HasRootPrivileges() {
 		return os.ErrPermission // User does not have root privileges
 	}
 
@@ -156,7 +147,7 @@ func DisableAndStopService() error {
 }
 
 func Update() error {
-	if !HasRootPrivileges() {
+	if !linux.HasRootPrivileges() {
 		return os.ErrPermission // User does not have root privileges
 	}
 
@@ -202,7 +193,7 @@ func Update() error {
 }
 
 func Install() error {
-	if !HasRootPrivileges() {
+	if !linux.HasRootPrivileges() {
 		return os.ErrPermission // User does not have root privileges
 	}
 
@@ -238,7 +229,7 @@ func Install() error {
 }
 
 func Uninstall() error {
-	if !HasRootPrivileges() {
+	if !linux.HasRootPrivileges() {
 		return os.ErrPermission // User does not have root privileges
 	}
 
