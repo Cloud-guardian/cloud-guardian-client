@@ -1,14 +1,16 @@
 package tasks
 
 import (
+	api "cloud-guardian/api"
+	cloudguardian_crypto "cloud-guardian/crypto"
+	pm "cloud-guardian/linux/packagemanager"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
-	api "cloud-guardian/api"
-	pm "cloud-guardian/linux/packagemanager"
 )
 
 func handleAPIError(errorMsg string, statusCode int) {
@@ -143,4 +145,14 @@ func formatPackages(packages []pm.Package) []map[string]string {
 		})
 	}
 	return formatted
+}
+
+func tryValidatePayload(hostKeys []string, message string, signature string) (bool, error) {
+	// TODO: Maybe we don't need to return the error and return only the bool
+	for _, key := range hostKeys {
+		if validated, err := cloudguardian_crypto.ValidatePayload(key, message, signature); err == nil && validated {
+			return true, nil
+		}
+	}
+	return false, fmt.Errorf("failed to validate payload")
 }

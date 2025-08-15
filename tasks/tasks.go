@@ -3,7 +3,8 @@ package tasks
 import (
 	api "cloud-guardian/api"
 	"cloud-guardian/cloudguardian_config"
-	cloudguardian_crypto "cloud-guardian/crypto"
+	"cloud-guardian/cloudguardian_version"
+	linux "cloud-guardian/linux"
 	linux_container "cloud-guardian/linux/container"
 	linux_df "cloud-guardian/linux/df"
 	linux_ip "cloud-guardian/linux/ip"
@@ -12,11 +13,10 @@ import (
 	pm "cloud-guardian/linux/packagemanager"
 	linux_reboot "cloud-guardian/linux/reboot"
 	linux_top "cloud-guardian/linux/top"
-	linux "cloud-guardian/linux"
-	"cloud-guardian/cloudguardian_version"
 	"fmt"
 	"log"
 	"net/http"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -328,11 +328,12 @@ func processNewJobs(hostname string) {
 
 		// {"createdAt":"${job.createdAt}","hostname":"${job.hostname}","jobType":"${job.jobType}","jobData":"${job.jobData}"}
 		message := `{"createdAt":"` + job.CreatedAt + `","hostname":"` + hostname + `","jobType":"` + job.JobType + `","jobData":"` + job.JobData + `"}`
-		validated, err := cloudguardian_crypto.ValidatePayload(Config.HostSecurityKey, message, job.Signature)
+
+		validated, err := tryValidatePayload(Config.HostSecurityKeys, message, job.Signature)
 		if err != nil {
 			log.Println("Failed to validate job payload:", job.JobId)
 			// Report back to the API that the job could not be processed
-			updateJobStatus(hostname, job.JobId, "failed", "failed to validate job payload")
+			updateJobStatus(hostname, job.JobId, "failed", "could not find valid host security key or failed to verify job payload")
 			continue
 		}
 		if !validated {
@@ -344,53 +345,11 @@ func processNewJobs(hostname string) {
 
 		switch job.JobType {
 		case "update":
-			// Process update job
-			log.Println("Processing update job for job ID:", job.JobId)
-			updateJobStatus(hostname, job.JobId, "running", "")
-			packageList := strings.Split(job.JobData, ",")
-			packageManager, err := pm.DetectPackageManager()
-			if err != nil {
-				log.Println("Error detecting package manager:", err.Error())
-				return
-			}
-			var stdOut, stdErr string
-			if packageList[0] == "all" {
-				stdOut, stdErr, err = packageManager.UpdateAllPackages()
-			} else {
-				stdOut, stdErr, err = packageManager.UpdatePackages(packageList)
-			}
-			if err != nil {
-				log.Println("Error updating packages:", err.Error())
-				updateJobStatus(hostname, job.JobId, "failed", fmt.Sprintf("failed to update packages %s", stdErr))
-				return
-			}
-			updateJobStatus(hostname, job.JobId, "completed", stdOut)
-			processUpdates(hostname, pm.AllUpdates, packageManager)
-			processUpdates(hostname, pm.SecurityUpdates, packageManager)
+			processJobUpdate(hostname, job.JobId, job.JobData)
 		case "reboot":
-			// Process reboot job
-			log.Println("Processing reboot job for job ID:", job.JobId)
-			// For reboot we first update the job status to "running" and then reboot
-			// the system. Later we check the running jobs to see if the job was successful
-			uptime, err := linux_top.GetUptime()
-			if uptime < maxRebootDuration {
-				log.Println("Reboot job: Uptime is less than", maxRebootDuration, " seconds. We have to wait until it is safe to reboot. Otherwise it could cause reboot loops.")
-				return
-			}
-			if err != nil {
-				log.Println("Reboot job: Error getting uptime:", err.Error())
-				updateJobStatus(hostname, job.JobId, "failed", "Reboot failed, because we couldn't check the uptime of the host")
-				return
-			}
-			updateJobStatus(hostname, job.JobId, "running", "initiated reboot, uptime: "+fmt.Sprintf("%d", uptime))
-			if err := linux_reboot.Reboot(); err != nil {
-				log.Println("Reboot job: Error initiating reboot:", err.Error())
-				updateJobStatus(hostname, job.JobId, "failed", "Reboot failed, because we couldn't initiate the reboot")
-				return
-			}
+			processJobReboot(hostname, job.JobId)
 		case "command":
-			// Process command job
-			log.Println("Processing command job for job ID:", job.JobId)
+			processJobCommand(hostname, job.JobId, job.JobData)
 		case "script":
 			// Process script job
 			log.Println("Processing script job for job ID:", job.JobId)
@@ -403,5 +362,69 @@ func processNewJobs(hostname string) {
 			updateJobStatus(hostname, job.JobId, "failed", "unknown job type")
 			continue
 		}
+	}
+}
+
+func processJobCommand(hostname string, jobId string, command string) {
+	log.Println("Processing command job for job ID:", jobId)
+	log.Println("Executing command:", command)
+	updateJobStatus(hostname, jobId, "running", "")
+	// Execute the command
+	cmd := exec.Command("bash", "-c")
+	cmd.Args = append(cmd.Args, command)
+	stdOut, stdErr, err := linux.RunCommand(cmd)
+	if err != nil {
+		log.Println("Error executing command:", err.Error())
+		updateJobStatus(hostname, jobId, "failed", fmt.Sprintf("failed to execute command: %s", stdErr))
+		return
+	}
+	updateJobStatus(hostname, jobId, "completed", stdOut)
+}
+
+func processJobUpdate(hostname string, jobId string, packages string) {
+	log.Println("Processing update job for job ID:", jobId)
+	log.Println("Updating packages:", packages)
+	updateJobStatus(hostname, jobId, "running", "")
+	packageList := strings.Split(packages, ",")
+	packageManager, err := pm.DetectPackageManager()
+	if err != nil {
+		log.Println("Error detecting package manager:", err.Error())
+		return
+	}
+	var stdOut, stdErr string
+	if packageList[0] == "all" {
+		stdOut, stdErr, err = packageManager.UpdateAllPackages()
+	} else {
+		stdOut, stdErr, err = packageManager.UpdatePackages(packageList)
+	}
+	if err != nil {
+		log.Println("Error updating packages:", err.Error())
+		updateJobStatus(hostname, jobId, "failed", fmt.Sprintf("failed to update packages %s", stdErr))
+		return
+	}
+	updateJobStatus(hostname, jobId, "completed", stdOut)
+	processUpdates(hostname, pm.AllUpdates, packageManager)
+	processUpdates(hostname, pm.SecurityUpdates, packageManager)
+}
+
+func processJobReboot(hostname string, jobId string) {
+	log.Println("Processing reboot job for job ID:", jobId)
+	// For reboot we first update the job status to "running" and then reboot
+	// the system. Later we check the running jobs to see if the job was successful
+	uptime, err := linux_top.GetUptime()
+	if uptime < maxRebootDuration {
+		log.Println("Reboot job: Uptime is less than", maxRebootDuration, " seconds. We have to wait until it is safe to reboot. Otherwise it could cause reboot loops.")
+		return
+	}
+	if err != nil {
+		log.Println("Reboot job: Error getting uptime:", err.Error())
+		updateJobStatus(hostname, jobId, "failed", "Reboot failed, because we couldn't check the uptime of the host")
+		return
+	}
+	updateJobStatus(hostname, jobId, "running", "initiated reboot, uptime: "+fmt.Sprintf("%d", uptime))
+	if err := linux_reboot.Reboot(); err != nil {
+		log.Println("Reboot job: Error initiating reboot:", err.Error())
+		updateJobStatus(hostname, jobId, "failed", "Reboot failed, because we couldn't initiate the reboot")
+		return
 	}
 }
