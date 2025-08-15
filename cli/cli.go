@@ -3,6 +3,7 @@ package cli
 import (
 	api "cloud-guardian/api"
 	"cloud-guardian/cloudguardian_config"
+	"cloud-guardian/cloudguardian_version"
 	linux_installer "cloud-guardian/linux/installer"
 	tasks "cloud-guardian/tasks"
 	"encoding/json"
@@ -13,7 +14,6 @@ import (
 	"path"
 	"regexp"
 	"strings"
-	"cloud-guardian/cloudguardian_version"
 )
 
 const apiKeyLength = 16 // Length of the API key, used for validation
@@ -141,15 +141,15 @@ func Start() {
 }
 
 type SecurityKeyApiResponse struct {
-	Code    int               `json:"code"`
-	Content map[string]string `json:"content"`
-	Message string            `json:"message"`
+	Code    int                 `json:"code"`
+	Content map[string][]string `json:"content"`
+	Message string              `json:"message"`
 }
 
-func fetchHostSecurityKey() {
+func fetchHostSecurityKeys() {
 	// Fetch the security key from the API and update the configuration file
 	log.Println("Fetching security key from API...")
-	statusCode, responseBody, err := api.GetRequest(config.ApiUrl+"hosts/securitykey", config.ApiKey)
+	statusCode, responseBody, err := api.GetRequest(config.ApiUrl+"hosts/securitykeys", config.ApiKey)
 	if err != nil {
 		log.Println(parseErrorResponse(err))
 		return
@@ -170,19 +170,14 @@ func fetchHostSecurityKey() {
 		log.Println("Error parsing response body:", err.Error())
 		return
 	}
-	if securityKey, ok := response.Content["hostSecurityKey"]; ok {
-		// Save the security key to the configuration
-		config.HostSecurityKey = securityKey
-		println("Security Key:", securityKey)
-	}
-
+	config.HostSecurityKeys = response.Content["hostSecurityKeys"] // Save the security keys to the configuration
 }
 
 func InstallService(hostname string) {
 	// Install the client as a system service
 	log.Println("Installing client as a system service...")
 
-	fetchHostSecurityKey()
+	fetchHostSecurityKeys()
 
 	linux_installer.Config = config // Set the configuration for the installer
 
@@ -266,5 +261,5 @@ func handleAPIError(errorMsg string, statusCode int) {
 
 func printVersion() {
 	// Print version information
-	log.Println("Version:",  cloudguardian_version.Version)
+	log.Println("Version:", cloudguardian_version.Version)
 }

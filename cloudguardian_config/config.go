@@ -9,10 +9,10 @@ import (
 )
 
 type CloudGuardianConfig struct {
-	ApiUrl          string `json:"api_url"`                     // URL of the Cloud Gardian API
-	ApiKey          string `json:"api_key"`                     // API key for authentication
-	HostSecurityKey string `json:"host_security_key,omitempty"` // Optional host security key
-	Debug           bool   `json:"debug"`                       // Debug mode flag
+	ApiUrl           string   `json:"api_url"`                      // URL of the Cloud Gardian API
+	ApiKey           string   `json:"api_key"`                      // API key for authentication
+	HostSecurityKeys []string `json:"host_security_keys,omitempty"` // Optional host security key
+	Debug            bool     `json:"debug"`                        // Debug mode flag
 }
 
 // DefaultConfig returns a default configuration for Cloud Gardian.
@@ -95,8 +95,8 @@ func (config *CloudGuardianConfig) Save(filename string) error {
 		configFileContent["api_url"] = config.ApiUrl
 	}
 
-	if config.HostSecurityKey != "" {
-		configFileContent["host_security_key"] = config.HostSecurityKey
+	if len(config.HostSecurityKeys) > 0 {
+		configFileContent["host_security_keys"] = config.HostSecurityKeys
 	}
 
 	if config.Debug {

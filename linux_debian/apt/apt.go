@@ -1,6 +1,7 @@
 package linux_debian_apt
 
 import (
+	"cloud-guardian/linux"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -19,28 +20,6 @@ const (
 	SecurityUpdates
 )
 
-// runCommand executes a given command and captures both stdout and stderr.
-// It returns the standard output, standard error, and any error that occurred during execution.
-//
-// Parameters:
-//   - command: The exec.Cmd to execute
-//
-// Returns:
-//   - string: Standard output from the command
-//   - string: Standard error output from the command
-//   - error: Any error that occurred during execution
-func runCommand(command *exec.Cmd) (string, string, error) {
-	var stdout strings.Builder
-	var stderr strings.Builder
-	command.Stdout = &stdout
-	command.Stderr = &stderr // Capture stderr as well
-	err := command.Run()
-	if err != nil {
-		return stdout.String(), stderr.String(), fmt.Errorf("command failed: %s", stderr.String())
-	}
-	return stdout.String(), stderr.String(), nil
-}
-
 // UpdateAllPackages upgrades all packages on the system using APT.
 // It runs the equivalent of 'apt upgrade --assume-yes --quiet' command.
 //
@@ -50,7 +29,7 @@ func runCommand(command *exec.Cmd) (string, string, error) {
 //   - error: Any error that occurred during the upgrade process
 func UpdateAllPackages() (string, string, error) {
 	command := exec.Command("apt", "upgrade", "--assume-yes", "--quiet")
-	return runCommand(command)
+	return linux.RunCommand(command)
 }
 
 // UpdatePackages updates the specified packages using the APT package manager.
@@ -66,7 +45,7 @@ func UpdateAllPackages() (string, string, error) {
 func UpdatePackages(packages []string) (string, string, error) {
 	command := exec.Command("apt", "--only-upgrade", "--assume-yes", "--quiet", "install")
 	command.Args = append(command.Args, packages...)
-	return runCommand(command)
+	return linux.RunCommand(command)
 }
 
 // InstallPackages installs the specified packages using the APT package manager.
@@ -81,7 +60,7 @@ func UpdatePackages(packages []string) (string, string, error) {
 //   - error: Any error that occurred during the installation process
 func InstallPackages(packages []string) (string, string, error) {
 	command := exec.Command("apt", "install", "--assume-yes", "--quiet", strings.Join(packages, " "))
-	return runCommand(command)
+	return linux.RunCommand(command)
 }
 
 // GetInstalledPackages retrieves a list of all installed packages on the system.
