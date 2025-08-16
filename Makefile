@@ -3,7 +3,7 @@
 
 VERSION ?= $(shell git describe --tags --long --always --match "*.*.*")
 API_URL ?= "https://api.cloud-guardian.net/cloudguardian-api/v1/"
-LDFLAGS := -X 'cloud-guardian/cli.Version=v$(VERSION)' -X 'cloud-guardian/cli.ApiUrl=$(API_URL)'
+LDFLAGS := -X 'cloud-guardian/cloudguardian_version.Version=v$(VERSION)' -X 'cloud-guardian/cli.ApiUrl=$(API_URL)'
 SRC_FILES = $(shell find . -type f -name '*.go')
 
 help: ## Displays help.
@@ -114,12 +114,13 @@ CONTAINER_PORTS = \
 	5002:ubuntu_20.04 \
 	5003:ubuntu_22.04 \
 	5004:rockylinux_8 \
-	5005:rockylinux_9
+	5005:rockylinux_9 \
+	5006:almalinux_9
 
 test_containers/.run.%: test_containers/.built.% ## Run the test container
 	$(eval PORT_IMAGE := $(filter %:$*,$(CONTAINER_PORTS)))
 	$(eval PORT := $(word 1,$(subst :, ,$(PORT_IMAGE))))
-	podman run --platform linux/arm64 --cap-add AUDIT_WRITE --detach --rm $(DOCKER_VOLUME) $(DOCKER_ENV) $*
+	podman run --platform linux/arm64 --cap-add AUDIT_WRITE --name $* --detach --rm $(DOCKER_VOLUME) $(DOCKER_ENV) $*
 	@touch $@
 
 test_containers/.built.%:
