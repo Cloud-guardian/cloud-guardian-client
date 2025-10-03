@@ -57,11 +57,13 @@ func execCommand(name string, args ...string) {
 func createSystemdService() error {
 	serviceFileContent := `[Unit]
 Description=` + serviceDescription + `
+ConditionFileIsExecutable=` + targetPath + `
 After=network.target
 
 [Service]
 ExecStart=` + targetPath + `
 Restart=always
+RestartSec=120
 
 [Install]
 WantedBy=multi-user.target
