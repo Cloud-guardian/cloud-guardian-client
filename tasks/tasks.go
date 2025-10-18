@@ -185,6 +185,7 @@ func processSystemInfo(hostname string) {
 		"is_container":          linux_container.IsRunningInContainer(),
 		"agent_version":         cloudguardian_version.Version,
 		"agent_running_as_root": linux.HasRootPrivileges(),
+		"accepted_public_keys":  Config.HostSecurityKeys,
 	})
 	if err != nil || statusCode != http.StatusOK {
 		handleAPIError("Error submitting system info", statusCode)
