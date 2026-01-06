@@ -13,6 +13,7 @@ import (
 	pm "cloud-guardian/linux/packagemanager"
 	linux_reboot "cloud-guardian/linux/reboot"
 	linux_top "cloud-guardian/linux/top"
+	linux_lsblk "cloud-guardian/linux/lsblk"
 	"fmt"
 	"log"
 	"net/http"
@@ -148,6 +149,7 @@ func processBasicMonitoring(hostname string) {
 	loadAverage := linux_top.GetLoad()
 	memory := linux_top.GetMemory()
 	tasks := linux_top.GetTasks()
+	blockdevices := linux_lsblk.GetLsBlk()
 
 	statusCode, err := api.PostRequest(Config.ApiUrl+"hosts/monitoring/"+hostname, Config.ApiKey, map[string]any{
 		"Uptime":            uptime,
@@ -160,6 +162,7 @@ func processBasicMonitoring(hostname string) {
 		"DiskFree":          diskFree,
 		"NetworkInterfaces": networkInterfaces,
 		"Routes":            routes,
+		"BlockDevices":      blockdevices,
 	})
 	if err != nil || statusCode != http.StatusOK {
 		handleAPIError("Error submitting basic monitoring data", statusCode)
