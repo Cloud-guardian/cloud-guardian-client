@@ -106,21 +106,23 @@ run-docker-rockylinux-%: ## Run Rocky Linux container
 	docker run $(DOCKER_COMMON_FLAGS) docker.io/rockylinux/rockylinux:$*
 
 run-docker-ubuntu-%: ## Run Ubuntu container
-	docker run $(DOCKER_COMMON_FLAGS) docker.io/ubuntu:jammy-20240808
+	docker run $(DOCKER_COMMON_FLAGS) docker.io/ubuntu:$*
 
 
 CONTAINER_PORTS = \
 	5001:ubuntu_18.04 \
 	5002:ubuntu_20.04 \
 	5003:ubuntu_22.04 \
-	5004:rockylinux_8 \
-	5005:rockylinux_9 \
-	5006:almalinux_9
+	5004:ubuntu_25.04 \
+	5005:ubuntu_25.10 \
+	5006:rockylinux_8 \
+	5007:rockylinux_9 \
+	5008:almalinux_9 \
 
 test_containers/.run.%: test_containers/.built.% ## Run the test container
 	$(eval PORT_IMAGE := $(filter %:$*,$(CONTAINER_PORTS)))
 	$(eval PORT := $(word 1,$(subst :, ,$(PORT_IMAGE))))
-	podman run --platform linux/arm64 --cap-add AUDIT_WRITE --name $* --detach --rm $(DOCKER_VOLUME) $(DOCKER_ENV) $*
+	podman run --platform linux/arm64 --cap-add AUDIT_WRITE --name $* --publish $(PORT):22 --detach --rm $(DOCKER_VOLUME) $(DOCKER_ENV) $*
 	@touch $@
 
 test_containers/.built.%:
