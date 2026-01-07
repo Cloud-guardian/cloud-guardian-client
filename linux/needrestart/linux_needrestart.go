@@ -38,6 +38,13 @@ func kernelNeedsReboot() bool {
 	return strings.TrimSpace(string(running)) != latest
 }
 
+var ignoredDeletedFiles = []string{
+	"/dev/zero",
+	"SYSV",
+	"/memfd:",
+	"/tmp",
+}
+
 func scanDeletedMappings() map[int][]string {
 	result := map[int][]string{}
 	filepath.WalkDir("/proc", func(p string, d fs.DirEntry, _ error) error {
@@ -59,7 +66,13 @@ func scanDeletedMappings() map[int][]string {
 			line := scanner.Text()
 			if strings.Contains(line, "(deleted)") {
 				fields := strings.Fields(line)
-				result[pid] = append(result[pid], fields[len(fields)-1])
+				file := fields[len(fields)-2]
+				for _, ign := range ignoredDeletedFiles {
+					if strings.Contains(file, ign) {
+						return nil
+					}
+				}
+				result[pid] = append(result[pid], fields[len(fields)-2])
 			}
 		}
 		return nil
