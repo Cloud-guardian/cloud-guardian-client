@@ -4,107 +4,28 @@ import (
 	"testing"
 )
 
-const testCaseDnfInstalled = `Installed Packages
-alternatives.x86_64                                            1.24-1.el9_5.1                                             @baseos   
-attr.x86_64                                                    2.5.1-3.el9                                                @baseos   
-audit-libs.x86_64                                              3.1.5-1.el9                                                @baseos   
-basesystem.noarch                                              11-13.el9.0.1                                              @baseos   
-bash.x86_64                                                    5.1.8-9.el9                                                @baseos   
-binutils.x86_64                                                2.35.2-54.el9                                              @baseos   
-binutils-gold.x86_64                                           2.35.2-54.el9                                              @baseos   
-bzip2-libs.x86_64                                              1.0.8-8.el9                                                @baseos   
-ca-certificates.noarch                                         2024.2.69_v8.0.303-91.4.el9_4                              @baseos   
-coreutils-single.x86_64                                        8.32-36.el9                                                @baseos   
-cracklib.x86_64                                                2.9.6-27.el9                                               @baseos   
+const testCaseDnfInstalled = `
+NetworkManager-tui.x86_64 1:1.54.0-3.el9_7 @baseos
+bubblewrap.x86_64 0:0.6.3-1.el9 @baseos
+bzip2-libs.x86_64 0:1.0.8-10.el9_5 @anaconda
+yum.noarch 0:4.14.0-31.el9.rocky.0.1 @baseos
+zabbix-agent2-plugin-ember-plus.x86_64 0:7.0.23-rc2.release1.el9 @zabbix
 `
 
 const testCaseDnfCheckUpdate1 = `
-
-NetworkManager.x86_64                                                    1:1.48.10-8.el9_5                                                     baseos
-NetworkManager-libnm.x86_64                                              1:1.48.10-8.el9_5                                                     baseos
-NetworkManager-team.x86_64                                               1:1.48.10-8.el9_5                                                     baseos
-NetworkManager-tui.x86_64                                                1:1.48.10-8.el9_5                                                     baseos
-consul.x86_64                                                            1.21.1-1                                                              hashicorp
-containerd.io.x86_64                                                     1.7.27-3.1.el9                                                        docker-ce-stable
-docker-buildx-plugin.x86_64                                              0.23.0-1.el9                                                          docker-ce-stable
-docker-ce.x86_64                                                         3:28.1.1-1.el9                                                        docker-ce-stable
-docker-ce-cli.x86_64                                                     1:28.1.1-1.el9                                                        docker-ce-stable
-docker-ce-rootless-extras.x86_64                                         28.1.1-1.el9                                                          docker-ce-stable
-docker-compose-plugin.x86_64                                             2.35.1-1.el9                                                          docker-ce-stable
-dracut.x86_64                                                            057-80.git20250411.el9_5                                              baseos
-dracut-config-rescue.x86_64                                              057-80.git20250411.el9_5                                              baseos
-dracut-network.x86_64                                                    057-80.git20250411.el9_5                                              baseos
-dracut-squash.x86_64                                                     057-80.git20250411.el9_5                                              baseos
-e2fsprogs.x86_64                                                         1.46.5-6.el9_5                                                        baseos
-e2fsprogs-libs.x86_64                                                    1.46.5-6.el9_5                                                        baseos
-emacs-filesystem.noarch                                                  1:27.2-11.el9_5.2                                                     appstream
-epel-release.noarch                                                      9-10.el9                                                              epel
-expat.x86_64                                                             2.5.0-3.el9_5.3                                                       baseos
-freetype.x86_64                                                          2.10.4-10.el9_5                                                       baseos
-glibc.x86_64                                                             2.34-125.el9_5.8                                                      baseos
-glibc-common.x86_64                                                      2.34-125.el9_5.8                                                      baseos
-glibc-devel.x86_64                                                       2.34-125.el9_5.8                                                      appstream
-glibc-gconv-extra.x86_64                                                 2.34-125.el9_5.8                                                      baseos
-glibc-headers.x86_64                                                     2.34-125.el9_5.8                                                      appstream
-glibc-langpack-en.x86_64                                                 2.34-125.el9_5.8                                                      baseos
-golang.x86_64                                                            1.23.6-2.el9_5                                                        appstream
-golang-bin.x86_64                                                        1.23.6-2.el9_5                                                        appstream
-golang-race.x86_64                                                       1.23.6-2.el9_5                                                        appstream
-golang-src.noarch                                                        1.23.6-2.el9_5                                                        appstream
-grub2-common.noarch                                                      1:2.06-94.el9_5                                                       baseos
-grub2-efi-x64.x86_64                                                     1:2.06-94.el9_5                                                       baseos
-grub2-pc.x86_64                                                          1:2.06-94.el9_5                                                       baseos
-grub2-pc-modules.noarch                                                  1:2.06-94.el9_5                                                       baseos
-grub2-tools.x86_64                                                       1:2.06-94.el9_5                                                       baseos
-grub2-tools-efi.x86_64                                                   1:2.06-94.el9_5                                                       baseos
-grub2-tools-extra.x86_64                                                 1:2.06-94.el9_5                                                       baseos
-grub2-tools-minimal.x86_64                                               1:2.06-94.el9_5                                                       baseos
-kernel.x86_64                                                            5.14.0-503.40.1.el9_5                                                 baseos
-kernel-core.x86_64                                                       5.14.0-503.40.1.el9_5                                                 baseos
-kernel-headers.x86_64                                                    5.14.0-503.40.1.el9_5                                                 appstream
-kernel-modules.x86_64                                                    5.14.0-503.40.1.el9_5                                                 baseos
-kernel-modules-core.x86_64                                               5.14.0-503.40.1.el9_5                                                 baseos
-kernel-tools.x86_64                                                      5.14.0-503.40.1.el9_5                                                 baseos
-kernel-tools-libs.x86_64                                                 5.14.0-503.40.1.el9_5                                                 baseos
-libcom_err.x86_64                                                        1.46.5-6.el9_5                                                        baseos
-libnfsidmap.x86_64                                                       1:2.5.4-27.el9_5.1                                                    baseos
-libss.x86_64                                                             1.46.5-6.el9_5                                                        baseos
-libwbclient.x86_64                                                       4.20.2-2.el9_5.1                                                      baseos
-libxml2.x86_64                                                           2.9.13-6.el9_5.2                                                      baseos
-libxslt.x86_64                                                           1.1.34-9.el9_5.3                                                      appstream
-linux-firmware.noarch                                                    20250415-146.5.el9_5                                                  baseos
-linux-firmware-whence.noarch                                             20250415-146.5.el9_5                                                  baseos
-mdadm.x86_64                                                             4.3-4.el9_5                                                           baseos
-microcode_ctl.noarch                                                     4:20240910-1.20250211.1.el9_5                                         baseos
-pciutils-libs.x86_64                                                     3.7.0-5.el9_5.1                                                       baseos
-python3-perf.x86_64                                                      5.14.0-503.40.1.el9_5                                                 baseos
-qemu-guest-agent.x86_64                                                  17:9.0.0-10.el9_5.3                                                   appstream
-rocky-gpg-keys.noarch                                                    9.5-1.3.el9                                                           baseos
-rocky-release.noarch                                                     9.5-1.3.el9                                                           baseos
-rocky-repos.noarch                                                       9.5-1.3.el9                                                           baseos
-samba-client-libs.x86_64                                                 4.20.2-2.el9_5.1                                                      baseos
-samba-common.noarch                                                      4.20.2-2.el9_5.1                                                      baseos
-samba-common-libs.x86_64                                                 4.20.2-2.el9_5.1                                                      baseos
-systemd.x86_64                                                           252-46.el9_5.3                                                        baseos
-systemd-boot-unsigned.x86_64                                             252-46.el9_5.3                                                        appstream
-systemd-libs.x86_64                                                      252-46.el9_5.3                                                        baseos
-systemd-pam.x86_64                                                       252-46.el9_5.3                                                        baseos
-systemd-resolved.x86_64                                                  252-46.el9_5.3                                                        baseos
-systemd-rpm-macros.noarch                                                252-46.el9_5.3                                                        baseos
-systemd-udev.x86_64                                                      252-46.el9_5.3                                                        baseos
-tzdata.noarch                                                            2025b-1.el9                                                           baseos
-tzdata-java.noarch                                                       2025b-1.el9                                                           appstream
-webkit2gtk3-jsc.x86_64                                                   2.48.1-1.el9_5                                                        appstream
-zabbix-agent2.x86_64                                                     7.0.13-rc1.release1.el9                                               zabbix
-Obsoleting Packages
-grub2-tools.x86_64                                                       1:2.06-94.el9_5                                                       baseos
-    grub2-tools.x86_64                                                   1:2.06-93.el9_5                                                       @baseos
-grub2-tools-efi.x86_64                                                   1:2.06-94.el9_5                                                       baseos
-    grub2-tools.x86_64                                                   1:2.06-93.el9_5                                                       @baseos
-grub2-tools-extra.x86_64                                                 1:2.06-94.el9_5                                                       baseos
-    grub2-tools.x86_64                                                   1:2.06-93.el9_5                                                       @baseos
-grub2-tools-minimal.x86_64                                               1:2.06-94.el9_5                                                       baseos
-    grub2-tools.x86_64                                                   1:2.06-93.el9_5                                                       @baseos
+docker-ce.x86_64 3:29.3.1-1.el9 docker-ce-stable
+docker-compose-plugin.x86_64 0:5.1.1-1.el9 docker-ce-stable
+glibc-common.x86_64 0:2.34-231.el9_7.10 baseos
+glibc-devel.x86_64 0:2.34-231.el9_7.10 appstream
+glibc-gconv-extra.x86_64 0:2.34-231.el9_7.10 baseos
+glibc-headers.x86_64 0:2.34-231.el9_7.10 appstream
+glibc-langpack-en.x86_64 0:2.34-231.el9_7.10 baseos
+glibc.x86_64 0:2.34-231.el9_7.10 baseos
+selinux-policy.noarch 0:38.1.65-1.el9_7.1 baseos
+util-linux-core.x86_64 0:2.37.4-21.el9_7 baseos
+util-linux.x86_64 0:2.37.4-21.el9_7 baseos
+zabbix-agent2-plugin-ember-plus.x86_64 0:7.0.24-rc3.release1.el9 zabbix
+zabbix-agent2-plugin-mongodb.x86_64 0:7.0.24-rc3.release1.el9 zabbix
 `
 
 const testCaseDnfCheckUpdate2 = `
@@ -131,73 +52,10 @@ qemu-guest-agent.x86_64                                                        1
 
 const testCaseDnfCheckUpdate3 = ``
 
-const testCaseDnfCheckUpdate4 = `
-consul.x86_64 0:1.22.6-1 hashicorp
-containerd.io.x86_64 0:2.2.2-1.el9 docker-ce-stable
-docker-ce-cli.x86_64 1:29.3.1-1.el9 docker-ce-stable
-docker-ce-rootless-extras.x86_64 0:29.3.1-1.el9 docker-ce-stable
-docker-ce.x86_64 3:29.3.1-1.el9 docker-ce-stable
-docker-compose-plugin.x86_64 0:5.1.1-1.el9 docker-ce-stable
-glibc-common.x86_64 0:2.34-231.el9_7.10 baseos
-glibc-devel.x86_64 0:2.34-231.el9_7.10 appstream
-glibc-gconv-extra.x86_64 0:2.34-231.el9_7.10 baseos
-glibc-headers.x86_64 0:2.34-231.el9_7.10 appstream
-glibc-langpack-en.x86_64 0:2.34-231.el9_7.10 baseos
-glibc.x86_64 0:2.34-231.el9_7.10 baseos
-gnutls.x86_64 0:3.8.3-10.el9_7 baseos
-golang-bin.x86_64 0:1.25.7-1.el9_7 appstream
-golang-race.x86_64 0:1.25.7-1.el9_7 appstream
-golang-src.noarch 0:1.25.7-1.el9_7 appstream
-golang.x86_64 0:1.25.7-1.el9_7 appstream
-kernel-core.x86_64 0:5.14.0-611.36.1.el9_7 baseos
-kernel-headers.x86_64 0:5.14.0-611.36.1.el9_7 appstream
-kernel-modules-core.x86_64 0:5.14.0-611.36.1.el9_7 baseos
-kernel-modules.x86_64 0:5.14.0-611.36.1.el9_7 baseos
-kernel-tools-libs.x86_64 0:5.14.0-611.36.1.el9_7 baseos
-kernel-tools.x86_64 0:5.14.0-611.36.1.el9_7 baseos
-kernel.x86_64 0:5.14.0-611.36.1.el9_7 baseos
-libblkid.x86_64 0:2.37.4-21.el9_7 baseos
-libdnf.x86_64 0:0.69.0-17.el9_7.rocky.0.1 baseos
-libfdisk.x86_64 0:2.37.4-21.el9_7 baseos
-libldb.x86_64 0:4.22.4-18.el9_7 baseos
-libmount.x86_64 0:2.37.4-21.el9_7 baseos
-libpng.x86_64 2:1.6.37-12.el9_7.2 baseos
-libsmartcols.x86_64 0:2.37.4-21.el9_7 baseos
-libsoup.x86_64 0:2.72.0-12.el9_7.5 appstream
-libuuid.x86_64 0:2.37.4-21.el9_7 baseos
-libwbclient.x86_64 0:4.22.4-18.el9_7 baseos
-mesa-dri-drivers.x86_64 0:25.0.7-5.el9_7 appstream
-mesa-filesystem.x86_64 0:25.0.7-5.el9_7 appstream
-mesa-libEGL.x86_64 0:25.0.7-5.el9_7 appstream
-mesa-libGL.x86_64 0:25.0.7-5.el9_7 appstream
-mesa-libgbm.x86_64 0:25.0.7-5.el9_7 appstream
-nftables.x86_64 1:1.0.9-6.el9_7 baseos
-nomad.x86_64 0:1.11.3-1 hashicorp
-ostree-libs.x86_64 0:2025.6-2.el9_7 appstream
-python-unversioned-command.noarch 0:3.9.25-3.el9_7.1 appstream
-python3-hawkey.x86_64 0:0.69.0-17.el9_7.rocky.0.1 baseos
-python3-libdnf.x86_64 0:0.69.0-17.el9_7.rocky.0.1 baseos
-python3-libs.x86_64 0:3.9.25-3.el9_7.1 baseos
-python3.x86_64 0:3.9.25-3.el9_7.1 baseos
-qemu-guest-agent.x86_64 17:9.1.0-29.el9_7.6 appstream
-samba-client-libs.x86_64 0:4.22.4-18.el9_7 baseos
-samba-common-libs.x86_64 0:4.22.4-18.el9_7 baseos
-samba-common.noarch 0:4.22.4-18.el9_7 baseos
-selinux-policy-targeted.noarch 0:38.1.65-1.el9_7.1 baseos
-selinux-policy.noarch 0:38.1.65-1.el9_7.1 baseos
-util-linux-core.x86_64 0:2.37.4-21.el9_7 baseos
-util-linux.x86_64 0:2.37.4-21.el9_7 baseos
-zabbix-agent2-plugin-ember-plus.x86_64 0:7.0.24-rc3.release1.el9 zabbix
-zabbix-agent2-plugin-mongodb.x86_64 0:7.0.24-rc3.release1.el9 zabbix
-zabbix-agent2-plugin-mssql.x86_64 0:7.0.24-rc3.release1.el9 zabbix
-zabbix-agent2-plugin-postgresql.x86_64 0:7.0.24-rc3.release1.el9 zabbix
-zabbix-agent2.x86_64 0:7.0.24-rc3.release1.el9 zabbix
-`
-
 func TestParseInstalledPackages(t *testing.T) {
-	const expectedPackageCount = 11
-	const expectedPackageName = "bash.x86_64"
-	const expectedPackageVersion = "5.1.8-9.el9"
+	const expectedPackageCount = 5
+	const expectedPackageName = "bubblewrap.x86_64"
+	const expectedPackageVersion = "0:0.6.3-1.el9"
 
 	packages := parseInstalledPackages(testCaseDnfInstalled)
 
@@ -219,8 +77,8 @@ func TestParseInstalledPackages(t *testing.T) {
 }
 
 func TestParseUpdates(t *testing.T) {
-	const expectedUpdate = "systemd-pam.x86_64 252-46.el9_5.3 baseos"
-	const expectedUpdates = 76
+	const expectedUpdate = "util-linux-core.x86_64 0:2.37.4-21.el9_7 baseos"
+	const expectedUpdates = 13
 	updates := parseUpdates(testCaseDnfCheckUpdate1)
 
 	if len(updates) == 0 {
@@ -240,31 +98,6 @@ func TestParseUpdates(t *testing.T) {
 			t.Errorf("Expected update '%s' not found in updates", expectedUpdate)
 		}
 	}
-}
-
-func TestParseUpdatesNewFormat(t *testing.T) {
-	const expectedUpdate = "zabbix-agent2-plugin-postgresql.x86_64 0:7.0.24-rc3.release1.el9 zabbix"
-	const expectedUpdates = 60
-	updates := parseUpdates(testCaseDnfCheckUpdate4)
-
-	if len(updates) == 0 {
-		t.Error("Expected updates, but got none")
-	} else {
-		if len(updates) != expectedUpdates {
-			t.Errorf("Expected %d updates, but got %d", expectedUpdates, len(updates))
-		}
-		var foundExpectedUpdate bool
-		foundExpectedUpdate = false
-		for _, update := range updates {
-			if update.Name+" "+update.Version+" "+update.Repo == expectedUpdate {
-				foundExpectedUpdate = true
-			}
-		}
-		if !foundExpectedUpdate {
-			t.Errorf("Expected update '%s' not found in updates", expectedUpdate)
-		}
-	}
-
 }
 
 func TestParseUpdatesNoObsolete(t *testing.T) {

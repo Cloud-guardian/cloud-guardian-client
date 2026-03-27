@@ -87,7 +87,7 @@ func InstallPackages(packages []string) (string, string, error) {
 //   - []DnfPackage: A slice of DnfPackage structs containing package information
 //   - error: Any error that occurred during the retrieval process
 func GetInstalledPackages() ([]DnfPackage, error) {
-	command := exec.Command("dnf", "list", "installed", "--quiet")
+	command := exec.Command("dnf", "repoquery", "--installed", "--qf", "%{name}.%{arch} %{epoch}:%{version}-%{release} %{from_repo}", "--quiet")
 	var out strings.Builder
 	command.Stdout = &out
 	err := command.Run()
@@ -172,9 +172,9 @@ func parseUpdateSummary(output string) DnfUpdateSummary {
 //   - []DnfPackage: A slice of packages that have updates available
 //   - error: Any error that occurred during the check process
 func CheckUpdates(updateType UpdateType) ([]DnfPackage, error) {
-	command := exec.Command("dnf", "check-update", "--quiet")
+	command := exec.Command("dnf", "repoquery", "--upgrades", "--qf", "%{name}.%{arch} %{epoch}:%{version}-%{release} %{reponame}", "--latest-limit=1", "--best", "--quiet")
 	if updateType == SecurityUpdates {
-		command.Args = append(command.Args, "--security")
+		command.Args = append(command.Args, "--secseverity", "Important")
 	}
 	var out strings.Builder
 	command.Stdout = &out
