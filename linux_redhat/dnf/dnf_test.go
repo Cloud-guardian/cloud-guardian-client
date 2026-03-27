@@ -131,6 +131,69 @@ qemu-guest-agent.x86_64                                                        1
 
 const testCaseDnfCheckUpdate3 = ``
 
+const testCaseDnfCheckUpdate4 = `
+consul.x86_64 0:1.22.6-1 hashicorp
+containerd.io.x86_64 0:2.2.2-1.el9 docker-ce-stable
+docker-ce-cli.x86_64 1:29.3.1-1.el9 docker-ce-stable
+docker-ce-rootless-extras.x86_64 0:29.3.1-1.el9 docker-ce-stable
+docker-ce.x86_64 3:29.3.1-1.el9 docker-ce-stable
+docker-compose-plugin.x86_64 0:5.1.1-1.el9 docker-ce-stable
+glibc-common.x86_64 0:2.34-231.el9_7.10 baseos
+glibc-devel.x86_64 0:2.34-231.el9_7.10 appstream
+glibc-gconv-extra.x86_64 0:2.34-231.el9_7.10 baseos
+glibc-headers.x86_64 0:2.34-231.el9_7.10 appstream
+glibc-langpack-en.x86_64 0:2.34-231.el9_7.10 baseos
+glibc.x86_64 0:2.34-231.el9_7.10 baseos
+gnutls.x86_64 0:3.8.3-10.el9_7 baseos
+golang-bin.x86_64 0:1.25.7-1.el9_7 appstream
+golang-race.x86_64 0:1.25.7-1.el9_7 appstream
+golang-src.noarch 0:1.25.7-1.el9_7 appstream
+golang.x86_64 0:1.25.7-1.el9_7 appstream
+kernel-core.x86_64 0:5.14.0-611.36.1.el9_7 baseos
+kernel-headers.x86_64 0:5.14.0-611.36.1.el9_7 appstream
+kernel-modules-core.x86_64 0:5.14.0-611.36.1.el9_7 baseos
+kernel-modules.x86_64 0:5.14.0-611.36.1.el9_7 baseos
+kernel-tools-libs.x86_64 0:5.14.0-611.36.1.el9_7 baseos
+kernel-tools.x86_64 0:5.14.0-611.36.1.el9_7 baseos
+kernel.x86_64 0:5.14.0-611.36.1.el9_7 baseos
+libblkid.x86_64 0:2.37.4-21.el9_7 baseos
+libdnf.x86_64 0:0.69.0-17.el9_7.rocky.0.1 baseos
+libfdisk.x86_64 0:2.37.4-21.el9_7 baseos
+libldb.x86_64 0:4.22.4-18.el9_7 baseos
+libmount.x86_64 0:2.37.4-21.el9_7 baseos
+libpng.x86_64 2:1.6.37-12.el9_7.2 baseos
+libsmartcols.x86_64 0:2.37.4-21.el9_7 baseos
+libsoup.x86_64 0:2.72.0-12.el9_7.5 appstream
+libuuid.x86_64 0:2.37.4-21.el9_7 baseos
+libwbclient.x86_64 0:4.22.4-18.el9_7 baseos
+mesa-dri-drivers.x86_64 0:25.0.7-5.el9_7 appstream
+mesa-filesystem.x86_64 0:25.0.7-5.el9_7 appstream
+mesa-libEGL.x86_64 0:25.0.7-5.el9_7 appstream
+mesa-libGL.x86_64 0:25.0.7-5.el9_7 appstream
+mesa-libgbm.x86_64 0:25.0.7-5.el9_7 appstream
+nftables.x86_64 1:1.0.9-6.el9_7 baseos
+nomad.x86_64 0:1.11.3-1 hashicorp
+ostree-libs.x86_64 0:2025.6-2.el9_7 appstream
+python-unversioned-command.noarch 0:3.9.25-3.el9_7.1 appstream
+python3-hawkey.x86_64 0:0.69.0-17.el9_7.rocky.0.1 baseos
+python3-libdnf.x86_64 0:0.69.0-17.el9_7.rocky.0.1 baseos
+python3-libs.x86_64 0:3.9.25-3.el9_7.1 baseos
+python3.x86_64 0:3.9.25-3.el9_7.1 baseos
+qemu-guest-agent.x86_64 17:9.1.0-29.el9_7.6 appstream
+samba-client-libs.x86_64 0:4.22.4-18.el9_7 baseos
+samba-common-libs.x86_64 0:4.22.4-18.el9_7 baseos
+samba-common.noarch 0:4.22.4-18.el9_7 baseos
+selinux-policy-targeted.noarch 0:38.1.65-1.el9_7.1 baseos
+selinux-policy.noarch 0:38.1.65-1.el9_7.1 baseos
+util-linux-core.x86_64 0:2.37.4-21.el9_7 baseos
+util-linux.x86_64 0:2.37.4-21.el9_7 baseos
+zabbix-agent2-plugin-ember-plus.x86_64 0:7.0.24-rc3.release1.el9 zabbix
+zabbix-agent2-plugin-mongodb.x86_64 0:7.0.24-rc3.release1.el9 zabbix
+zabbix-agent2-plugin-mssql.x86_64 0:7.0.24-rc3.release1.el9 zabbix
+zabbix-agent2-plugin-postgresql.x86_64 0:7.0.24-rc3.release1.el9 zabbix
+zabbix-agent2.x86_64 0:7.0.24-rc3.release1.el9 zabbix
+`
+
 func TestParseInstalledPackages(t *testing.T) {
 	const expectedPackageCount = 11
 	const expectedPackageName = "bash.x86_64"
@@ -158,7 +221,31 @@ func TestParseInstalledPackages(t *testing.T) {
 func TestParseUpdates(t *testing.T) {
 	const expectedUpdate = "systemd-pam.x86_64 252-46.el9_5.3 baseos"
 	const expectedUpdates = 76
-	updates, obsolete := parseUpdates(testCaseDnfCheckUpdate1)
+	updates := parseUpdates(testCaseDnfCheckUpdate1)
+
+	if len(updates) == 0 {
+		t.Error("Expected updates, but got none")
+	} else {
+		if len(updates) != expectedUpdates {
+			t.Errorf("Expected %d updates, but got %d", expectedUpdates, len(updates))
+		}
+		var foundExpectedUpdate bool
+		foundExpectedUpdate = false
+		for _, update := range updates {
+			if update.Name+" "+update.Version+" "+update.Repo == expectedUpdate {
+				foundExpectedUpdate = true
+			}
+		}
+		if !foundExpectedUpdate {
+			t.Errorf("Expected update '%s' not found in updates", expectedUpdate)
+		}
+	}
+}
+
+func TestParseUpdatesNewFormat(t *testing.T) {
+	const expectedUpdate = "zabbix-agent2-plugin-postgresql.x86_64 0:7.0.24-rc3.release1.el9 zabbix"
+	const expectedUpdates = 60
+	updates := parseUpdates(testCaseDnfCheckUpdate4)
 
 	if len(updates) == 0 {
 		t.Error("Expected updates, but got none")
@@ -178,32 +265,21 @@ func TestParseUpdates(t *testing.T) {
 		}
 	}
 
-	if len(obsolete) == 0 {
-		t.Error("Expected obsolete packages, but got none")
-	}
 }
 
 func TestParseUpdatesNoObsolete(t *testing.T) {
-	updates, obsolete := parseUpdates(testCaseDnfCheckUpdate2)
+	updates := parseUpdates(testCaseDnfCheckUpdate2)
 
 	if len(updates) == 0 {
 		t.Error("Expected updates, but got none")
 	}
-
-	if len(obsolete) != 0 {
-		t.Error("Expected no obsolete packages, but got some")
-	}
 }
 
 func TestParseUpdatesNoUpdates(t *testing.T) {
-	updates, obsolete := parseUpdates(testCaseDnfCheckUpdate3)
+	updates := parseUpdates(testCaseDnfCheckUpdate3)
 
 	if len(updates) != 0 {
 		t.Error("Expected no updates, but got some")
-	}
-
-	if len(obsolete) != 0 {
-		t.Error("Expected no obsolete packages, but got some")
 	}
 }
 

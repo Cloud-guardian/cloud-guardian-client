@@ -38,7 +38,7 @@ type PackageManager interface {
 	UpdatePackages(packages []string) (string, string, error)
 	InstallPackages(packages []string) (string, string, error)
 	GetInstalledPackages() ([]Package, error)
-	CheckUpdates(updatetype UpdateType) ([]Package, []Package, error)
+	CheckUpdates(updatetype UpdateType) ([]Package, error)
 }
 
 func DetectPackageManager() (PackageManager, error) {
@@ -87,10 +87,10 @@ func (dnf *Dnf) GetInstalledPackages() ([]Package, error) {
 	return result, nil
 }
 
-func (dnf *Dnf) CheckUpdates(updateType UpdateType) ([]Package, []Package, error) {
-	updates, obsolete, err := linux_redhat_dnf.CheckUpdates(linux_redhat_dnf.UpdateType(updateType))
+func (dnf *Dnf) CheckUpdates(updateType UpdateType) ([]Package, error) {
+	updates, err := linux_redhat_dnf.CheckUpdates(linux_redhat_dnf.UpdateType(updateType))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	updatesResult := make([]Package, len(updates))
@@ -102,16 +102,7 @@ func (dnf *Dnf) CheckUpdates(updateType UpdateType) ([]Package, []Package, error
 		}
 	}
 
-	obsoleteResult := make([]Package, len(obsolete))
-	for i, pkg := range obsolete {
-		obsoleteResult[i] = Package{
-			Name:    pkg.Name,
-			Version: pkg.Version,
-			Repo:    pkg.Repo,
-		}
-	}
-
-	return updatesResult, obsoleteResult, nil
+	return updatesResult, nil
 }
 
 // APT Manager implementation
@@ -146,12 +137,12 @@ func (apt *Apt) GetInstalledPackages() ([]Package, error) {
 	return result, nil
 }
 
-func (apt *Apt) CheckUpdates(updateType UpdateType) ([]Package, []Package, error) {
+func (apt *Apt) CheckUpdates(updateType UpdateType) ([]Package, error) {
 	linux_debian_apt.AptUpdate() // Ensure apt is updated before checking for updates
 
-	updates, obsolete, err := linux_debian_apt.CheckUpdates(linux_debian_apt.UpdateType(updateType))
+	updates, err := linux_debian_apt.CheckUpdates(linux_debian_apt.UpdateType(updateType))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	updatesResult := make([]Package, len(updates))
@@ -163,14 +154,5 @@ func (apt *Apt) CheckUpdates(updateType UpdateType) ([]Package, []Package, error
 		}
 	}
 
-	obsoleteResult := make([]Package, len(obsolete))
-	for i, pkg := range obsolete {
-		obsoleteResult[i] = Package{
-			Name:    pkg.Name,
-			Version: pkg.Version,
-			Repo:    pkg.Repo,
-		}
-	}
-
-	return updatesResult, obsoleteResult, nil
+	return updatesResult, nil
 }

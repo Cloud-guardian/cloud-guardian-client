@@ -170,9 +170,8 @@ func parseUpdateSummary(output string) DnfUpdateSummary {
 //
 // Returns:
 //   - []DnfPackage: A slice of packages that have updates available
-//   - []DnfPackage: A slice of obsolete packages
 //   - error: Any error that occurred during the check process
-func CheckUpdates(updateType UpdateType) ([]DnfPackage, []DnfPackage, error) {
+func CheckUpdates(updateType UpdateType) ([]DnfPackage, error) {
 	command := exec.Command("dnf", "check-update", "--quiet")
 	if updateType == SecurityUpdates {
 		command.Args = append(command.Args, "--security")
@@ -185,12 +184,12 @@ func CheckUpdates(updateType UpdateType) ([]DnfPackage, []DnfPackage, error) {
 		if exitError, ok := err.(*exec.ExitError); ok && exitError.ExitCode() == 100 {
 			// Treat exit code 100 as a success
 		} else {
-			return nil, nil, fmt.Errorf("command failed: %s", out.String())
+			return nil, fmt.Errorf("command failed: %s", out.String())
 		}
 	}
 
-	updates, obsolete := parseUpdates(out.String())
-	return updates, obsolete, nil
+	updates := parseUpdates(out.String())
+	return updates, nil
 }
 
 // CheckUpdateSummary retrieves a summary of available updates categorized by type.
@@ -248,28 +247,24 @@ func CheckUpdateInfoList() ([]DnfPackage, error) {
 }
 
 // parseUpdates parses the output from 'dnf check-update' command.
-// It separates regular updates from obsolete packages and returns both lists.
+// It returns a slice of DnfPackage structs representing the available updates.
 //
 // Parameters:
 //   - output: The raw output string from the DNF check-update command
 //
 // Returns:
 //   - []DnfPackage: A slice of packages with available updates
-//   - []DnfPackage: A slice of obsolete packages
-func parseUpdates(output string) ([]DnfPackage, []DnfPackage) {
+func parseUpdates(output string) []DnfPackage {
 	// Parse the output of `dnf check-update` to extract package names
-	// Return the package names and obsolete packages
+	// Return the package names and versions as a slice of DnfPackage structs
 	lines := strings.Split(output, "\n")
 	updates := []DnfPackage{}
-	obsolete := []DnfPackage{}
-	isObsoleteSection := false
 	for _, line := range lines {
 		if strings.TrimSpace(line) == "" || strings.HasPrefix(line, "Last metadata expiration check") {
 			continue // Skip empty lines and metadata expiration messages
 		}
 		if strings.HasPrefix(line, "Obsoleting Packages") {
-			isObsoleteSection = true
-			continue // Skip obsolete packages line
+			break
 		}
 		// Split the line by whitespace and take the first part as the package name
 		parts := regexp.MustCompile(`\s+`).Split(line, -1)
@@ -279,12 +274,8 @@ func parseUpdates(output string) ([]DnfPackage, []DnfPackage) {
 				Version: parts[1],
 				Repo:    parts[2],
 			}
-			if isObsoleteSection {
-				obsolete = append(obsolete, pkg)
-			} else {
-				updates = append(updates, pkg)
-			}
+			updates = append(updates, pkg)
 		}
 	}
-	return updates, obsolete
+	return updates
 }

@@ -36,14 +36,10 @@ func TestParseUpdates(t *testing.T) {
 	}
 	expectedUpdateCount := 20
 
-	updates, obsolete := parseUpdates(testSample1, AllUpdates)
+	updates := parseUpdates(testSample1, AllUpdates)
 
 	if len(updates) != expectedUpdateCount {
 		t.Errorf("Expected %d updates, got %d", expectedUpdateCount, len(updates))
-	}
-
-	if len(obsolete) != 0 {
-		t.Errorf("Expected 0 obsolete packages, got %d", len(obsolete))
 	}
 
 	// Check if expected update is present

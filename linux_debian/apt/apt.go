@@ -142,9 +142,8 @@ func AptUpdate() error {
 //
 // Returns:
 //   - []AptPackage: A slice of packages that have updates available
-//   - []AptPackage: A slice of obsolete packages (empty for APT)
 //   - error: Any error that occurred during the check process
-func CheckUpdates(updateType UpdateType) ([]AptPackage, []AptPackage, error) {
+func CheckUpdates(updateType UpdateType) ([]AptPackage, error) {
 	var command *exec.Cmd
 	command = exec.Command("apt", "list", "--upgradable")
 	var out strings.Builder
@@ -152,10 +151,10 @@ func CheckUpdates(updateType UpdateType) ([]AptPackage, []AptPackage, error) {
 
 	err := command.Run()
 	if err != nil {
-		return nil, nil, fmt.Errorf("command failed: %s", out.String())
+		return nil, fmt.Errorf("command failed: %s", out.String())
 	}
-	updates, obsolete := parseUpdates(out.String(), updateType)
-	return updates, obsolete, nil
+	updates := parseUpdates(out.String(), updateType)
+	return updates, nil
 }
 
 // parseUpdates parses the output from 'apt list --upgradable' command.
@@ -167,11 +166,9 @@ func CheckUpdates(updateType UpdateType) ([]AptPackage, []AptPackage, error) {
 //
 // Returns:
 //   - []AptPackage: A slice of packages with available updates
-//   - []AptPackage: A slice of obsolete packages (empty for APT)
-func parseUpdates(output string, updateType UpdateType) ([]AptPackage, []AptPackage) {
+func parseUpdates(output string, updateType UpdateType) []AptPackage {
 	lines := strings.Split(output, "\n")
 	updates := []AptPackage{}
-	obsolete := []AptPackage{}
 	for _, line := range lines {
 		if strings.TrimSpace(line) == "" || strings.HasPrefix(line, "Listing...") || strings.HasPrefix(line, "WARNING:") {
 			continue // Skip empty lines and listing header
@@ -198,11 +195,7 @@ func parseUpdates(output string, updateType UpdateType) ([]AptPackage, []AptPack
 			Repo:    repo,
 		}
 
-		if strings.Contains(repo, "obsolete") {
-			obsolete = append(obsolete, pkg)
-		} else {
-			updates = append(updates, pkg)
-		}
+		updates = append(updates, pkg)
 	}
-	return updates, obsolete
+	return updates
 }
