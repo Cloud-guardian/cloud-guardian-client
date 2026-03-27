@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-func handleAPIError(errorMsg string, statusCode int) {
+func handleAPIError(errorMsg string, err error, statusCode int) {
 	// Handle API errors by printing the error message and status code
 	// 4xx are user errors, we log them and then quit because the user needs to fix something
 	if statusCode == 404 {
@@ -23,12 +23,11 @@ func handleAPIError(errorMsg string, statusCode int) {
 		log.Fatal("Invalid API key. Please check your API key in the configuration file or command line arguments.")
 	}
 	if statusCode >= 400 && statusCode < 500 {
-		log.Println(errorMsg, "(Client error) - Status code:", statusCode)
-		return
+		log.Fatal(errorMsg, " - Error: ", parseErrorResponse(err), " - Status code:", statusCode)
 	}
 	// Everything above 500 is considered a server error, we log it
 	if statusCode >= 500 {
-		log.Println(errorMsg)
+		log.Println(errorMsg, " (Server error) - Status code:", statusCode, "Error:", parseErrorResponse(err))
 	}
 }
 
@@ -53,7 +52,7 @@ func updateJobStatus(hostname, jobId, status string, result string) {
 		"result": result,
 	})
 	if err != nil || statusCode != http.StatusOK {
-		handleAPIError("Error updating job status", statusCode)
+		handleAPIError("Error updating job status", err, statusCode)
 		return
 	}
 	log.Println("Job status updated successfully for", hostname, "Job ID:", jobId, "Status:", status)
@@ -123,7 +122,7 @@ func fetchHostJobs(hostname string, status string) (*[]HostJob, error) {
 	}
 
 	if statusCode != http.StatusOK {
-		handleAPIError("Error retrieving host jobs", statusCode)
+		handleAPIError("Error retrieving host jobs", err, statusCode)
 		return nil, errors.New("error retrieving host jobs")
 	}
 

@@ -9,13 +9,13 @@ import (
 	linux_df "cloud-guardian/linux/df"
 	linux_ip "cloud-guardian/linux/ip"
 	linux_loggedinusers "cloud-guardian/linux/loggedinusers"
+	linux_lsblk "cloud-guardian/linux/lsblk"
+	linux_mdstat "cloud-guardian/linux/mdstat"
+	linux_needrestart "cloud-guardian/linux/needrestart"
 	linux_osrelease "cloud-guardian/linux/osrelease"
 	pm "cloud-guardian/linux/packagemanager"
 	linux_reboot "cloud-guardian/linux/reboot"
 	linux_top "cloud-guardian/linux/top"
-	linux_lsblk "cloud-guardian/linux/lsblk"
-	linux_mdstat "cloud-guardian/linux/mdstat"
-	linux_needrestart "cloud-guardian/linux/needrestart"
 	"fmt"
 	"log"
 	"net/http"
@@ -105,7 +105,7 @@ func processPing(hostname string) {
 	statusCode, err := api.PostRequest(Config.ApiUrl+"hosts/ping/"+hostname, Config.ApiKey, map[string]any{})
 
 	if err != nil || statusCode != http.StatusOK {
-		handleAPIError("Error submitting ping", statusCode)
+		handleAPIError("Error submitting ping", err, statusCode)
 		return
 	}
 	log.Println("Ping submitted successfully for", hostname)
@@ -169,10 +169,9 @@ func processBasicMonitoring(hostname string) {
 		"BlockDevices":      blockdevices,
 		"MdStat":            mdstat,
 		"NeedRestart":       needrestart,
-
 	})
 	if err != nil || statusCode != http.StatusOK {
-		handleAPIError("Error submitting basic monitoring data", statusCode)
+		handleAPIError("Error submitting basic monitoring data", err, statusCode)
 		return
 	}
 
@@ -198,7 +197,7 @@ func processSystemInfo(hostname string) {
 		"accepted_public_keys":  Config.HostSecurityKeys,
 	})
 	if err != nil || statusCode != http.StatusOK {
-		handleAPIError("Error submitting system info", statusCode)
+		handleAPIError("Error submitting system info", err, statusCode)
 		return
 	}
 
@@ -226,7 +225,7 @@ func processInstalledPackages(hostname string, packageManager pm.PackageManager)
 		"packages": formatPackages(packages),
 	})
 	if err != nil || statusCode != http.StatusOK {
-		handleAPIError("Error submitting installed packages", statusCode)
+		handleAPIError("Error submitting installed packages", err, statusCode)
 		return
 	}
 	log.Println("Installed packages submitted successfully for", hostname)
@@ -234,7 +233,7 @@ func processInstalledPackages(hostname string, packageManager pm.PackageManager)
 
 func processUpdates(hostname string, updateType pm.UpdateType, packageManager pm.PackageManager) {
 	// Process updates for the given hostname
-	updates, obsolete, err := packageManager.CheckUpdates(updateType)
+	updates, err := packageManager.CheckUpdates(updateType)
 	if err != nil {
 		log.Println("Error checking updates:", err.Error())
 		return
@@ -249,10 +248,6 @@ func processUpdates(hostname string, updateType pm.UpdateType, packageManager pm
 		}
 		for _, update := range updates {
 			log.Println(update.Name + " - " + update.Version + " (" + update.Repo + ")")
-		}
-		log.Println("Obsolete packages for", hostname)
-		for _, obso := range obsolete {
-			log.Println(obso.Name + " - " + obso.Version + " (" + obso.Repo + ")")
 		}
 		log.Println("##########################################")
 	}
@@ -270,7 +265,7 @@ func processUpdates(hostname string, updateType pm.UpdateType, packageManager pm
 		"updates": formatPackages(updates),
 	})
 	if err != nil || statusCode != http.StatusOK {
-		handleAPIError("Error submitting updates", statusCode)
+		handleAPIError("Error submitting updates", err, statusCode)
 		return
 	}
 	log.Println("Updates submitted successfully for", hostname)

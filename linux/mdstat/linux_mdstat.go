@@ -15,22 +15,22 @@ type MdStat struct {
 }
 
 type Array struct {
-	Name        string     `json:"name"`
-	Level       string     `json:"level"`
-	State       string     `json:"state"`
-	Devices     []Device   `json:"devices"`
-	Blocks      uint64     `json:"blocks"`
-	RaidDisks   int        `json:"raid_disks"`
-	ActiveDisks int        `json:"active_disks"`
-	Health      string     `json:"health"`
-	Progress    *Progress  `json:"progress,omitempty"`
-	Sys         *SysBlock  `json:"sys,omitempty"`
+	Name        string    `json:"name"`
+	Level       string    `json:"level"`
+	State       string    `json:"state"`
+	Devices     []Device  `json:"devices"`
+	Blocks      uint64    `json:"blocks"`
+	RaidDisks   int       `json:"raid_disks"`
+	ActiveDisks int       `json:"active_disks"`
+	Health      string    `json:"health"`
+	Progress    *Progress `json:"progress,omitempty"`
+	Sys         *SysBlock `json:"sys,omitempty"`
 }
 
 type Device struct {
-	Name  string `json:"name"`
-	Slot  int    `json:"slot"`
-	Size  uint64 `json:"size_blocks,omitempty"`
+	Name string `json:"name"`
+	Slot int    `json:"slot"`
+	Size uint64 `json:"size_blocks,omitempty"`
 }
 
 type Progress struct {
@@ -47,9 +47,9 @@ type SysBlock struct {
 }
 
 var (
-	devRe    = regexp.MustCompile(`(\w+)\[(\d+)\]`)
-	sizeRe   = regexp.MustCompile(`(\d+)\s+blocks.*\[(\d+)/(\d+)\]\s+\[([U_]+)\]`)
-	progRe   = regexp.MustCompile(`\((recovery|resync|rebuild)=\s*([\d.]+)%.*?speed=([\d]+)K/sec.*?finish=([^)]+)\)`)
+	devRe  = regexp.MustCompile(`(\w+)\[(\d+)\]`)
+	sizeRe = regexp.MustCompile(`(\d+)\s+blocks.*\[(\d+)/(\d+)\]\s+\[([U_]+)\]`)
+	progRe = regexp.MustCompile(`\((recovery|resync|rebuild)=\s*([\d.]+)%.*?speed=([\d]+)K/sec.*?finish=([^)]+)\)`)
 )
 
 func GetMdStat() (mdstat MdStat) {
@@ -116,10 +116,10 @@ func GetMdStat() (mdstat MdStat) {
 			pct, _ := strconv.ParseFloat(m[2], 64)
 			speed, _ := strconv.ParseInt(m[3], 10, 64)
 			mdstat.Arrays[len(mdstat.Arrays)-1].Progress = &Progress{
-				Type:    m[1],
-				Percent: pct,
+				Type:     m[1],
+				Percent:  pct,
 				SpeedKPS: speed,
-				ETA:     strings.TrimSpace(m[4]),
+				ETA:      strings.TrimSpace(m[4]),
 			}
 		}
 	}
