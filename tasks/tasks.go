@@ -13,6 +13,7 @@ import (
 	linux_mdstat "cloud-guardian/linux/mdstat"
 	linux_needrestart "cloud-guardian/linux/needrestart"
 	linux_osrelease "cloud-guardian/linux/osrelease"
+	linux_systemd "cloud-guardian/linux/systemd"
 	pm "cloud-guardian/linux/packagemanager"
 	linux_reboot "cloud-guardian/linux/reboot"
 	linux_top "cloud-guardian/linux/top"
@@ -154,6 +155,10 @@ func processBasicMonitoring(hostname string) {
 	blockdevices := linux_lsblk.GetLsBlk()
 	mdstat := linux_mdstat.GetMdStat()
 	needrestart := linux_needrestart.GetNeedRestart()
+	services, err := linux_systemd.GetServices()
+	if err != nil {
+		log.Println("Error getting systemd services:", err.Error())
+	}
 
 	statusCode, err := api.PostRequest(Config.ApiUrl+"hosts/monitoring/"+hostname, Config.ApiKey, map[string]any{
 		"Uptime":            uptime,
@@ -169,6 +174,7 @@ func processBasicMonitoring(hostname string) {
 		"BlockDevices":      blockdevices,
 		"MdStat":            mdstat,
 		"NeedRestart":       needrestart,
+		"Services":          services,
 	})
 	if err != nil || statusCode != http.StatusOK {
 		handleAPIError("Error submitting basic monitoring data", err, statusCode)
