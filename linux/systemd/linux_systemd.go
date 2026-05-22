@@ -19,46 +19,104 @@ type Service struct {
 	UnitFileState string
 }
 
-// func main() {
+func connectToSystemd() (context.Context, *dbus.Conn, error) {
+	ctx := context.Background()
+	conn, err := dbus.NewSystemConnectionContext(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return ctx, conn, nil
+}
 
-//     services, err := GetServices()
-//     if err != nil {
-//         log.Fatalf("failed to get services: %v", err)
-//     }
+func PerformServiceAction(serviceName string, action string) (string, error) {
+	switch action {
+	case "restart":
+		return RestartService(serviceName)
+	case "stop":
+		return StopService(serviceName)
+	case "start":
+		return StartService(serviceName)
+	case "reload":
+		return ReloadService(serviceName)
+	default:
+		return "", nil
+	}
+}
 
-//     fmt.Println("=== ALL SERVICES ===")
-//     for _, s := range services {
-//         fmt.Printf(
-//             "%s | %s | active=%s | enabled=%s\n",
-//             s.Name,
-//             s.Description,
-//             s.ActiveState,
-//             s.UnitFileState,
-//         )
-//     }
+func RestartService(serviceName string) (string, error) {
+	ctx, conn, err := connectToSystemd()
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
 
-//     fmt.Println()
-//     fmt.Println("=== ENABLED BUT NOT RUNNING ===")
+	responseChan := make(chan string)
+	_, err = conn.RestartUnitContext(ctx, serviceName, "replace", responseChan)
+	if err != nil {
+		return "", err
+	}
 
-//     for _, s := range services {
-//         if isExpectedRunning(s) {
-//             fmt.Printf(
-//                 "%s | active=%s | sub=%s\n",
-//                 s.Name,
-//                 s.ActiveState,
-//                 s.SubState,
-//             )
-//         }
-//     }
-// }
+	log.Printf("Service %s restarted successfully", serviceName)
+	return <-responseChan, nil
+}
+
+func StopService(serviceName string) (string, error) {
+	ctx, conn, err := connectToSystemd()
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+
+	responseChan := make(chan string)
+	_, err = conn.StopUnitContext(ctx, serviceName, "replace", responseChan)
+	if err != nil {
+		return "", err
+	}
+
+	log.Printf("Service %s stopped successfully", serviceName)
+	return <-responseChan, nil
+}
+
+func StartService(serviceName string) (string, error) {
+	ctx, conn, err := connectToSystemd()
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+
+	responseChan := make(chan string)
+	_, err = conn.StartUnitContext(ctx, serviceName, "replace", responseChan)
+	if err != nil {
+		return "", err
+	}
+
+	log.Printf("Service %s started successfully", serviceName)
+	return <-responseChan, nil
+}
+
+func ReloadService(serviceName string) (string, error) {
+	ctx, conn, err := connectToSystemd()
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+
+	responseChan := make(chan string)
+	_, err = conn.ReloadUnitContext(ctx, serviceName, "replace", responseChan)
+	if err != nil {
+		return "", err
+	}
+
+	log.Printf("Service %s reloaded successfully", serviceName)
+	return <-responseChan, nil
+}
+
 
 func GetServices() ([]Service, error) {
 
-	ctx := context.Background()
-
-	conn, err := dbus.NewSystemConnectionContext(ctx)
+	ctx, conn, err := connectToSystemd()
 	if err != nil {
-		log.Fatalf("failed to connect to systemd dbus: %v", err)
+		return nil, err
 	}
 	defer conn.Close()
 

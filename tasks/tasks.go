@@ -38,6 +38,8 @@ func ProcessTasks(hostname string, oneShot bool) {
 	var minuteCounter int = 0
 
 	for {
+		// Process tasks that need to run every minute
+		processOneMinuteTasks(hostname)
 
 		if minuteCounter%5 == 0 {
 			// Process tasks that need to run every 5 minutes
@@ -70,12 +72,16 @@ func ProcessTasks(hostname string, oneShot bool) {
 	}
 }
 
+func processOneMinuteTasks(hostname string) {
+	log.Println("Processing 1-minute tasks...")
+	processPing(hostname)
+	processNewJobs(hostname)
+}
+
 func processFiveMinuteTasks(hostname string) {
 	log.Println("Processing 5-minute tasks...")
-	processPing(hostname)
 	processBasicMonitoring(hostname)
 	processRunningJobs(hostname)
-	processNewJobs(hostname)
 }
 
 func processDailyTasks(hostname string) {
@@ -365,6 +371,14 @@ func processNewJobs(hostname string) {
 		case "script":
 			// Process script job
 			log.Println("Processing script job for job ID:", job.JobId)
+		case "restart_service":
+			processServiceAction(hostname, job.JobId, job.JobData, "restart")
+		case "stop_service":
+			processServiceAction(hostname, job.JobId, job.JobData, "stop")
+		case "start_service":
+			processServiceAction(hostname, job.JobId, job.JobData, "start")
+		case "reload_service":
+			processServiceAction(hostname, job.JobId, job.JobData, "reload")
 		case "update_agent":
 			// Process update_agent job
 			log.Println("Processing update_agent job for job ID:", job.JobId)
@@ -391,6 +405,19 @@ func processJobCommand(hostname string, jobId string, command string) {
 		return
 	}
 	updateJobStatus(hostname, jobId, "completed", stdOut)
+}
+
+func processServiceAction(hostname string, jobId string, serviceName string, action string) {
+	log.Println("Processing service action job for job ID:", jobId)
+	log.Println("Performing action", action, "on service:", serviceName)
+	updateJobStatus(hostname, jobId, "running", "")
+	result, err := linux_systemd.PerformServiceAction(serviceName, action)
+	if err != nil {
+		log.Println("Error performing service action:", err.Error())
+		updateJobStatus(hostname, jobId, "failed", fmt.Sprintf("failed to perform action %s on service %s: %s", action, serviceName, err.Error()))
+		return
+	}
+	updateJobStatus(hostname, jobId, "completed", fmt.Sprintf("Successfully performed action %s on service %s: %s", action, serviceName, result))
 }
 
 func processJobUpdate(hostname string, jobId string, packages string) {
